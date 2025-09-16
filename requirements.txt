@@ -1,0 +1,15 @@
+torch 
+torchvision 
+torchaudio
+lightning
+timm
+albumentations 
+opencv-python
+scikit-learn
+pillow
+fastapi 
+uvicorn[standard]
+streamlit
+numpy 
+pyyaml 
+matplotlib
