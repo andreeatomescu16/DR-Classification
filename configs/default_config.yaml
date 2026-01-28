@@ -1,0 +1,51 @@
+# Default configuration for DR Classification training
+# This file can be used to reproduce experiments
+
+# Data configuration
+data:
+  fold_csv: "data/folds/fold0.csv"
+  img_size: 512
+  batch_size: 16
+  num_workers: 0
+  remove_borders: true
+
+# Model configuration
+model:
+  name: "efficientnet_b3"
+  num_classes: 5
+  pretrained: true
+  drop_rate: 0.0
+  drop_path_rate: 0.0
+
+# Training configuration
+training:
+  epochs: 30
+  lr: 0.0001
+  weight_decay: 0.0001
+  lr_scheduler: "cosine"  # cosine, step, plateau, none
+  warmup_epochs: 0
+  
+  # Freeze/unfreeze strategy
+  freeze_backbone: false
+  unfreeze_epoch: null  # null = never freeze, or epoch number to unfreeze
+  
+  # Loss function
+  loss:
+    type: "ce"  # ce, weighted_ce, focal, label_smoothing
+    use_class_weights: false
+    focal_gamma: 2.0
+    label_smoothing: 0.1
+
+# Callbacks configuration
+callbacks:
+  monitor: "val_qwk"
+  mode: "max"
+  patience: 10
+  save_top_k: 1
+
+# Reproducibility
+seed: 42
+
+# Hardware
+device: "auto"  # auto, cpu, cuda, mps
+

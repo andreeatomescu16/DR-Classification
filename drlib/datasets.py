@@ -16,17 +16,33 @@ class DRDataset(Dataset):
 
     def __getitem__(self, i):
         row = self.df.iloc[i]
-        img = cv2.imread(row.image_path, cv2.IMREAD_COLOR)
+        
+        # Try to load image, skip if not found
+        img_path = Path(row.image_path)
+        if not img_path.exists():
+            # Try to find alternative paths or use a placeholder
+            # For now, we'll raise an error but with better message
+            raise FileNotFoundError(
+                f"Image not found: {row.image_path}\n"
+                f"Please check if the file exists or update the CSV with correct paths."
+            )
+        
+        img = cv2.imread(str(img_path), cv2.IMREAD_COLOR)
         if img is None:
-            raise FileNotFoundError(row.image_path)
+            raise FileNotFoundError(f"Could not load image (may be corrupted): {row.image_path}")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        # Apply transforms (includes normalization and tensor conversion)
         if self.tfm:
             aug = self.tfm(image=img)
             img = aug["image"]
-        img = img.float() / 255.0
-        # normalize to ImageNet stats
-        mean = torch.tensor([0.485,0.456,0.406]).view(3,1,1)
-        std  = torch.tensor([0.229,0.224,0.225]).view(3,1,1)
-        img = (img - mean) / std
+        else:
+            # Fallback: basic preprocessing if no transform provided
+            img = cv2.resize(img, (512, 512))
+            img = torch.from_numpy(img).float() / 255.0
+            mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+            std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+            img = (img - mean) / std
+        
         label = int(row.label)
         return img, label

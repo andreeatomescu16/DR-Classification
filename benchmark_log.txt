@@ -1,0 +1,118 @@
+
+============================================================
+Training EfficientNet-B2
+============================================================
+Running: /Users/Andreea/Licență/DR-Classification/venv/bin/python -m drlib.train --fold_csv data/folds/fold0.csv --model efficientnet_b2 --img_size 384 --batch_size 8 --epochs 20 --lr 1e-4 --loss weighted_ce --use_class_weights --lr_scheduler cosine --patience 10 --monitor val_qwk --seed 42
+Error training EfficientNet-B2:
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:34: UserWarning: Argument(s) 'always_apply' are not valid for transform BasicTransform
+  super().__init__(always_apply=always_apply, p=p)
+/Users/Andreea/Licență/DR-Classification/venv/lib/python3.14/site-packages/albumentations/core/validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+  original_init(self, **validated_kwargs)
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:106: UserWarning: Argument(s) 'value' are not valid for transform ShiftScaleRotate
+  ShiftScaleRotate(
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:123: UserWarning: Argument(s) 'shift_limit' are not valid for transform OpticalDistortion
+  transforms.append(OpticalDistortion(distort_limit=0.1, shift_limit=0.05, p=0.2))
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:126: UserWarning: Argument(s) 'max_holes, max_height, max_width' are not valid for transform CoarseDropout
+  transforms.append(CoarseDropout(max_holes=8, max_height=32, max_width=32, p=0.1))
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:34: UserWarning: Argument(s) 'always_apply' are not valid for transform BasicTransform
+  super().__init__(always_apply=always_apply, p=p)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 378, in <module>
+    main()
+    ~~~~^^
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 330, in main
+    model = DRModule(
+        model_name=args.model,
+    ...<9 lines>...
+        gamma=args.focal_gamma if args.loss == 'focal' else None
+    )
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 69, in __init__
+    self.model = create_model(model_name, num_classes=5, pretrained=True)
+                 ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Andreea/Licență/DR-Classification/drlib/models.py", line 43, in create_model
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: Model 'efficientnet_b2' not found in timm. Available models: aimv2_1b_patch14_224.apple_pt, aimv2_1b_patch14_336.apple_pt, aimv2_1b_patch14_448.apple_pt, aimv2_3b_patch14_224.apple_pt, aimv2_3b_patch14_336.apple_pt, aimv2_3b_patch14_448.apple_pt, aimv2_huge_patch14_224.apple_pt, aimv2_huge_patch14_336.apple_pt, aimv2_huge_patch14_448.apple_pt, aimv2_large_patch14_224.apple_pt...
+
+
+============================================================
+Training EfficientNet-B4
+============================================================
+Running: /Users/Andreea/Licență/DR-Classification/venv/bin/python -m drlib.train --fold_csv data/folds/fold0.csv --model efficientnet_b4 --img_size 384 --batch_size 8 --epochs 20 --lr 1e-4 --loss weighted_ce --use_class_weights --lr_scheduler cosine --patience 10 --monitor val_qwk --seed 42
+Error training EfficientNet-B4:
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:34: UserWarning: Argument(s) 'always_apply' are not valid for transform BasicTransform
+  super().__init__(always_apply=always_apply, p=p)
+/Users/Andreea/Licență/DR-Classification/venv/lib/python3.14/site-packages/albumentations/core/validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+  original_init(self, **validated_kwargs)
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:106: UserWarning: Argument(s) 'value' are not valid for transform ShiftScaleRotate
+  ShiftScaleRotate(
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:123: UserWarning: Argument(s) 'shift_limit' are not valid for transform OpticalDistortion
+  transforms.append(OpticalDistortion(distort_limit=0.1, shift_limit=0.05, p=0.2))
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:126: UserWarning: Argument(s) 'max_holes, max_height, max_width' are not valid for transform CoarseDropout
+  transforms.append(CoarseDropout(max_holes=8, max_height=32, max_width=32, p=0.1))
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:34: UserWarning: Argument(s) 'always_apply' are not valid for transform BasicTransform
+  super().__init__(always_apply=always_apply, p=p)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 378, in <module>
+    main()
+    ~~~~^^
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 330, in main
+    model = DRModule(
+        model_name=args.model,
+    ...<9 lines>...
+        gamma=args.focal_gamma if args.loss == 'focal' else None
+    )
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 69, in __init__
+    self.model = create_model(model_name, num_classes=5, pretrained=True)
+                 ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Andreea/Licență/DR-Classification/drlib/models.py", line 43, in create_model
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: Model 'efficientnet_b4' not found in timm. Available models: aimv2_1b_patch14_224.apple_pt, aimv2_1b_patch14_336.apple_pt, aimv2_1b_patch14_448.apple_pt, aimv2_3b_patch14_224.apple_pt, aimv2_3b_patch14_336.apple_pt, aimv2_3b_patch14_448.apple_pt, aimv2_huge_patch14_224.apple_pt, aimv2_huge_patch14_336.apple_pt, aimv2_huge_patch14_448.apple_pt, aimv2_large_patch14_224.apple_pt...
+
+
+============================================================
+Training ViT-B/16
+============================================================
+Running: /Users/Andreea/Licență/DR-Classification/venv/bin/python -m drlib.train --fold_csv data/folds/fold0.csv --model vit_base_patch16_384 --img_size 384 --batch_size 8 --epochs 20 --lr 1e-4 --loss weighted_ce --use_class_weights --lr_scheduler cosine --patience 10 --monitor val_qwk --seed 42
+Error training ViT-B/16:
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:34: UserWarning: Argument(s) 'always_apply' are not valid for transform BasicTransform
+  super().__init__(always_apply=always_apply, p=p)
+/Users/Andreea/Licență/DR-Classification/venv/lib/python3.14/site-packages/albumentations/core/validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+  original_init(self, **validated_kwargs)
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:106: UserWarning: Argument(s) 'value' are not valid for transform ShiftScaleRotate
+  ShiftScaleRotate(
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:123: UserWarning: Argument(s) 'shift_limit' are not valid for transform OpticalDistortion
+  transforms.append(OpticalDistortion(distort_limit=0.1, shift_limit=0.05, p=0.2))
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:126: UserWarning: Argument(s) 'max_holes, max_height, max_width' are not valid for transform CoarseDropout
+  transforms.append(CoarseDropout(max_holes=8, max_height=32, max_width=32, p=0.1))
+/Users/Andreea/Licență/DR-Classification/drlib/transforms.py:34: UserWarning: Argument(s) 'always_apply' are not valid for transform BasicTransform
+  super().__init__(always_apply=always_apply, p=p)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 378, in <module>
+    main()
+    ~~~~^^
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 330, in main
+    model = DRModule(
+        model_name=args.model,
+    ...<9 lines>...
+        gamma=args.focal_gamma if args.loss == 'focal' else None
+    )
+  File "/Users/Andreea/Licență/DR-Classification/drlib/train.py", line 69, in __init__
+    self.model = create_model(model_name, num_classes=5, pretrained=True)
+                 ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Andreea/Licență/DR-Classification/drlib/models.py", line 43, in create_model
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: Model 'vit_base_patch16_384' not found in timm. Available models: aimv2_1b_patch14_224.apple_pt, aimv2_1b_patch14_336.apple_pt, aimv2_1b_patch14_448.apple_pt, aimv2_3b_patch14_224.apple_pt, aimv2_3b_patch14_336.apple_pt, aimv2_3b_patch14_448.apple_pt, aimv2_huge_patch14_224.apple_pt, aimv2_huge_patch14_336.apple_pt, aimv2_huge_patch14_448.apple_pt, aimv2_large_patch14_224.apple_pt...
+
+No results to save!

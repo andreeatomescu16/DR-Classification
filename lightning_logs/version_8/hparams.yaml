@@ -1,0 +1,9 @@
+freeze_backbone: false
+img_size: 384
+loss_type: weighted_ce
+lr: 0.0001
+lr_scheduler: cosine
+model_name: efficientnet_b4.ra2_in1k
+unfreeze_epoch: null
+warmup_epochs: 0
+weight_decay: 0.0001
