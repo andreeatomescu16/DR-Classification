@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# PyTorch / Lightning
+lightning_logs/
+*.ckpt
+*.pth
+*.pt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (optional - uncomment if you don't want to commit data)
+# data/
+# *.csv
+
+# Results (optional - uncomment if you don't want to commit results)
+# benchmark_results/
+# evaluation_results/
+# analysis_results/
+
+# Logs
+*.log
+benchmark_log.txt
+
+# Temporary files
+*.tmp
+*.bak

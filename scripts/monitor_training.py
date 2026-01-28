@@ -12,6 +12,7 @@ from pathlib import Path
 import yaml
 import pandas as pd
 import json
+import numpy as np
 
 
 def find_latest_training():
@@ -58,33 +59,78 @@ def format_metrics(df):
     if df is None or len(df) == 0:
         return "No metrics available yet."
     
-    # Get latest epoch
-    latest = df.iloc[-1]
+    # Combine information from all rows (Lightning logs LR and epoch separately)
+    # Get the latest non-null values for each metric
+    latest_info = {}
+    
+    # Find latest epoch
+    epoch_rows = df[df['epoch'].notna()]
+    if len(epoch_rows) > 0:
+        latest_info['epoch'] = epoch_rows.iloc[-1]['epoch']
+    
+    # Find latest step
+    step_rows = df[df['step'].notna()]
+    if len(step_rows) > 0:
+        latest_info['step'] = int(step_rows.iloc[-1]['step'])
+    
+    # Find latest LR
+    lr_rows = df[df['lr-AdamW'].notna()]
+    if len(lr_rows) > 0:
+        latest_info['lr'] = lr_rows.iloc[-1]['lr-AdamW']
+    
+    # Find latest train loss
+    loss_rows = df[df['train_loss_step'].notna()]
+    if len(loss_rows) > 0:
+        latest_info['train_loss'] = loss_rows.iloc[-1]['train_loss_step']
+    
+    # Check for epoch-level metrics (these appear after validation)
+    epoch_level_cols = [col for col in df.columns if col.startswith('train_') or col.startswith('val_')]
+    for col in epoch_level_cols:
+        col_rows = df[df[col].notna()]
+        if len(col_rows) > 0:
+            latest_info[col] = col_rows.iloc[-1][col]
     
     lines = []
-    lines.append(f"Epoch: {latest.get('epoch', 'N/A')}")
     
-    # Training metrics
-    if 'train_loss' in latest:
-        lines.append(f"Train Loss: {latest['train_loss']:.4f}")
-    if 'train_qwk' in latest:
-        lines.append(f"Train QWK: {latest['train_qwk']:.4f}")
-    if 'train_acc' in latest:
-        lines.append(f"Train Acc: {latest['train_acc']:.4f}")
+    # Epoch and step
+    if 'epoch' in latest_info:
+        epoch_val = latest_info['epoch']
+        if pd.isna(epoch_val) or (isinstance(epoch_val, float) and np.isnan(epoch_val)):
+            lines.append(f"Epoch: Training...")
+        else:
+            lines.append(f"Epoch: {int(epoch_val)}")
+    else:
+        lines.append(f"Epoch: Starting...")
     
-    # Validation metrics
-    if 'val_loss' in latest:
-        lines.append(f"Val Loss: {latest['val_loss']:.4f}")
-    if 'val_qwk' in latest:
-        lines.append(f"Val QWK: {latest['val_qwk']:.4f}")
-    if 'val_acc' in latest:
-        lines.append(f"Val Acc: {latest['val_acc']:.4f}")
-    if 'val_f1' in latest:
-        lines.append(f"Val F1: {latest['val_f1']:.4f}")
+    if 'step' in latest_info:
+        lines.append(f"Step: {latest_info['step']}")
     
     # Learning rate
-    if 'lr-AdamW' in latest:
-        lines.append(f"LR: {latest['lr-AdamW']:.6f}")
+    if 'lr' in latest_info:
+        lines.append(f"LR: {latest_info['lr']:.6f}")
+    else:
+        lines.append(f"LR: Initializing...")
+    
+    # Training metrics
+    if 'train_loss' in latest_info:
+        lines.append(f"Train Loss: {latest_info['train_loss']:.4f}")
+    
+    if 'train_qwk' in latest_info:
+        lines.append(f"Train QWK: {latest_info['train_qwk']:.4f}")
+    if 'train_acc' in latest_info:
+        lines.append(f"Train Acc: {latest_info['train_acc']:.4f}")
+    if 'train_f1' in latest_info:
+        lines.append(f"Train F1: {latest_info['train_f1']:.4f}")
+    
+    # Validation metrics
+    if 'val_loss' in latest_info:
+        lines.append(f"Val Loss: {latest_info['val_loss']:.4f}")
+    if 'val_qwk' in latest_info:
+        lines.append(f"Val QWK: {latest_info['val_qwk']:.4f}")
+    if 'val_acc' in latest_info:
+        lines.append(f"Val Acc: {latest_info['val_acc']:.4f}")
+    if 'val_f1' in latest_info:
+        lines.append(f"Val F1: {latest_info['val_f1']:.4f}")
     
     return "\n".join(lines)
 
