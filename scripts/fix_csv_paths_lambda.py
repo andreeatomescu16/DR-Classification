@@ -12,19 +12,32 @@ import os
 
 def find_image_by_filename(filename, search_dirs):
     """Find image file by filename in search directories."""
+    # First try exact filename match
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
         
-        # Try direct match
+        # Try direct match in this directory
         direct_path = search_dir / filename
-        if direct_path.exists():
+        if direct_path.exists() and direct_path.is_file():
             return direct_path
+    
+    # Then try recursive search (slower but more thorough)
+    for search_dir in search_dirs:
+        if not search_dir.exists():
+            continue
         
         # Try recursive search
-        matches = list(search_dir.rglob(filename))
-        if matches:
-            return matches[0]
+        try:
+            matches = list(search_dir.rglob(filename))
+            if matches:
+                # Return first match that is actually a file
+                for match in matches:
+                    if match.is_file():
+                        return match
+        except (PermissionError, OSError):
+            # Skip directories we can't access
+            continue
     
     return None
 
@@ -48,24 +61,44 @@ def fix_csv_paths(input_csv, output_csv=None, dataset_dir=None, base_path=None):
     # Determine search directories
     search_dirs = []
     if dataset_dir:
-        search_dirs.append(Path(dataset_dir))
+        dataset_path = Path(dataset_dir)
+        if dataset_path.exists():
+            search_dirs.append(dataset_path)
+            # Also add all subdirectories that might contain images
+            for subdir in dataset_path.rglob("*"):
+                if subdir.is_dir():
+                    # Check if it contains image files
+                    if any(subdir.glob("*.png")) or any(subdir.glob("*.jpg")) or any(subdir.glob("*.jpeg")):
+                        search_dirs.append(subdir)
     
     # Add common locations relative to CSV
     csv_path = Path(input_csv)
     csv_dir = csv_path.parent if csv_path.is_file() else csv_path
-    search_dirs.extend([
+    common_dirs = [
         csv_dir.parent / 'combined_dataset',
         csv_dir.parent.parent / 'combined_dataset',
         base_path / 'data' / 'combined_dataset',
         base_path / 'combined_dataset',
-    ])
+    ]
     
-    # Remove duplicates and non-existent dirs
-    search_dirs = [d for d in search_dirs if d.exists()]
+    for common_dir in common_dirs:
+        if common_dir.exists():
+            search_dirs.append(common_dir)
+            # Also search recursively in common directories
+            for subdir in common_dir.rglob("*"):
+                if subdir.is_dir():
+                    if any(subdir.glob("*.png")) or any(subdir.glob("*.jpg")) or any(subdir.glob("*.jpeg")):
+                        search_dirs.append(subdir)
     
-    print(f"\nSearch directories:")
-    for d in search_dirs[:5]:  # Show first 5
+    # Remove duplicates while preserving order
+    seen = set()
+    search_dirs = [d for d in search_dirs if d not in seen and not seen.add(d)]
+    
+    print(f"\nSearch directories ({len(search_dirs)} total):")
+    for d in search_dirs[:10]:  # Show first 10
         print(f"  - {d}")
+    if len(search_dirs) > 10:
+        print(f"  ... and {len(search_dirs) - 10} more")
     
     # Fix paths
     print("\nFixing paths...")
