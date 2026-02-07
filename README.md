@@ -54,6 +54,24 @@ pip install -r requirements.txt
 
 ## Quick Start
 
+### 🚀 Training pe Lambda Labs (RECOMANDAT pentru training from scratch)
+
+Pentru training stabil și fără întreruperi, folosește Lambda Labs:
+
+1. **Setup complet:** Vezi [LAMBDA_LABS_SETUP.md](LAMBDA_LABS_SETUP.md)
+2. **Cost estimat:** ~$13.50-18 EUR pentru toate cele 3 modele
+3. **GPU recomandat:** A10 (24GB) - $0.75/oră
+
+**Quick start:**
+```bash
+# Pe Lambda Labs instance:
+git clone https://github.com/andreeatomescu16/DR-Classification.git
+cd DR-Classification
+bash setup_cloud.sh
+```
+
+---
+
 ### 1. Prepare Datasets
 
 #### APTOS Dataset:

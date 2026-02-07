@@ -54,7 +54,7 @@ MODELS_TO_BENCHMARK = [
 ]
 
 
-def train_model(model_config, fold_csv, epochs=30, batch_size=16, device='auto', log_file=None):
+def train_model(model_config, fold_csv, epochs=30, batch_size=16, device='auto', log_file=None, num_workers=0):
     """Train a single model with real-time progress output."""
     print(f"\n{'='*60}")
     print(f"Training {model_config['display_name']}")
@@ -76,7 +76,8 @@ def train_model(model_config, fold_csv, epochs=30, batch_size=16, device='auto',
         '--lr_scheduler', 'cosine',
         '--patience', '10',
         '--monitor', 'val_qwk',
-        '--seed', '42'
+        '--seed', '42',
+        '--num_workers', str(num_workers)
     ]
     
     print(f"Running: {' '.join(cmd)}")
@@ -154,7 +155,7 @@ def train_model(model_config, fold_csv, epochs=30, batch_size=16, device='auto',
 
 
 def evaluate_model_for_benchmark(checkpoint_path, data_csv, split='val', img_size=384, 
-                                  batch_size=32, device='auto', n_gradcam=20):
+                                  batch_size=32, device='auto', n_gradcam=20, num_workers=0):
     """Evaluate a model and generate metrics."""
     print(f"\nEvaluating model: {checkpoint_path}")
     
@@ -180,7 +181,7 @@ def evaluate_model_for_benchmark(checkpoint_path, data_csv, split='val', img_siz
         dataset,
         batch_size=batch_size,
         shuffle=False,
-        num_workers=0,
+        num_workers=num_workers,
         pin_memory=True if device != 'cpu' else False
     )
     
@@ -393,7 +394,7 @@ def main():
     ap = argparse.ArgumentParser(description="Benchmark multiple DR classification models")
     ap.add_argument("--fold_csv", required=True, help="Path to fold CSV file")
     ap.add_argument("--epochs", type=int, default=30, help="Number of training epochs")
-    ap.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
+    ap.add_argument("--batch_size", type=int, default=32, help="Batch size for training (32 for A10 GPU, 16 for smaller GPUs)")
     ap.add_argument("--eval_batch_size", type=int, default=32, help="Batch size for evaluation")
     ap.add_argument("--n_gradcam", type=int, default=20, help="Number of samples for Grad-CAM")
     ap.add_argument("--skip_training", action='store_true', help="Skip training, only evaluate existing checkpoints")
@@ -401,6 +402,7 @@ def main():
     ap.add_argument("--out_dir", default="benchmark_results", help="Output directory")
     ap.add_argument("--resume", action='store_true', help="Resume from existing checkpoints if available")
     ap.add_argument("--log_dir", default=None, help="Directory to save training logs")
+    ap.add_argument("--num_workers", type=int, default=8, help="Number of data loader workers (use 8 for Lambda Labs A10, 4-8 for other cloud GPUs)")
     
     args = ap.parse_args()
     
@@ -440,7 +442,8 @@ def main():
                     args.fold_csv,
                     epochs=args.epochs,
                     batch_size=args.batch_size,
-                    log_file=str(log_file)
+                    log_file=str(log_file),
+                    num_workers=args.num_workers
                 )
             
             if checkpoint:
@@ -454,7 +457,8 @@ def main():
                     split='val',
                     img_size=model_config['img_size'],
                     batch_size=args.eval_batch_size,
-                    n_gradcam=args.n_gradcam
+                    n_gradcam=args.n_gradcam,
+                    num_workers=args.num_workers
                 )
                 
                 if result:
@@ -478,7 +482,8 @@ def main():
                 split='val',
                 img_size=model_config['img_size'],
                 batch_size=args.eval_batch_size,
-                n_gradcam=args.n_gradcam
+                n_gradcam=args.n_gradcam,
+                num_workers=args.num_workers
             )
             
             if result:
