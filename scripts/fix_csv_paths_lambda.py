@@ -61,12 +61,36 @@ def fix_csv_paths(input_csv, output_csv=None, dataset_dir=None, base_path=None):
     # Determine search directories
     search_dirs = []
     
-    # Start with base_path (current directory) - images might be here
-    if base_path.exists():
-        search_dirs.append(base_path)
-        # Search recursively in base_path for image directories
+    # Check if we're in a nested DR-Classification directory
+    possible_base_paths = [
+        base_path,
+        base_path / 'DR-Classification',
+        base_path.parent / 'DR-Classification' if base_path.name == 'DR-Classification' else base_path,
+    ]
+    
+    # Find the actual base path that contains images
+    actual_base = None
+    for possible_base in possible_base_paths:
+        if possible_base.exists():
+            # Check if it contains data/combined_dataset
+            combined_dataset = possible_base / 'data' / 'combined_dataset'
+            if combined_dataset.exists():
+                actual_base = possible_base
+                break
+    
+    if actual_base is None:
+        # Fallback: use base_path and search recursively
+        actual_base = base_path
+    
+    print(f"Using base path: {actual_base.absolute()}")
+    
+    # Add the combined_dataset directory
+    combined_dataset = actual_base / 'data' / 'combined_dataset'
+    if combined_dataset.exists():
+        search_dirs.append(combined_dataset)
+        # Add all subdirectories recursively
         try:
-            for subdir in base_path.rglob("*"):
+            for subdir in combined_dataset.rglob("*"):
                 if subdir.is_dir():
                     # Check if it contains image files
                     png_count = len(list(subdir.glob("*.png")))
@@ -77,42 +101,40 @@ def fix_csv_paths(input_csv, output_csv=None, dataset_dir=None, base_path=None):
         except (PermissionError, OSError) as e:
             print(f"Warning: Could not search all subdirectories: {e}")
     
-    # Add dataset_dir if provided
+    # Also search in dataset_dir if provided
     if dataset_dir:
         dataset_path = Path(dataset_dir)
+        if not dataset_path.is_absolute():
+            dataset_path = actual_base / dataset_path
         if dataset_path.exists():
             search_dirs.append(dataset_path)
-            # Also add all subdirectories that might contain images
             try:
                 for subdir in dataset_path.rglob("*"):
                     if subdir.is_dir():
-                        # Check if it contains image files
                         if any(subdir.glob("*.png")) or any(subdir.glob("*.jpg")) or any(subdir.glob("*.jpeg")):
                             search_dirs.append(subdir)
             except (PermissionError, OSError):
                 pass
     
-    # Add common locations relative to CSV
+    # Add common locations
     csv_path = Path(input_csv)
     csv_dir = csv_path.parent if csv_path.is_file() else csv_path
     common_dirs = [
+        actual_base / 'data' / 'combined_dataset',
+        actual_base / 'DR-Classification' / 'data' / 'combined_dataset',
         csv_dir.parent / 'combined_dataset',
         csv_dir.parent.parent / 'combined_dataset',
-        base_path / 'data' / 'combined_dataset',
-        base_path / 'combined_dataset',
-        csv_dir.parent,  # data/ directory
-        base_path,  # Root directory
     ]
     
     for common_dir in common_dirs:
-        if common_dir.exists():
+        if common_dir.exists() and common_dir not in search_dirs:
             search_dirs.append(common_dir)
-            # Also search recursively in common directories
             try:
                 for subdir in common_dir.rglob("*"):
                     if subdir.is_dir():
                         if any(subdir.glob("*.png")) or any(subdir.glob("*.jpg")) or any(subdir.glob("*.jpeg")):
-                            search_dirs.append(subdir)
+                            if subdir not in search_dirs:
+                                search_dirs.append(subdir)
             except (PermissionError, OSError):
                 pass
     
@@ -147,15 +169,35 @@ def fix_csv_paths(input_csv, output_csv=None, dataset_dir=None, base_path=None):
             new_path = find_image_by_filename(filename, search_dirs)
             
             if new_path:
-                # Convert to relative path from base_path
+                # Convert to relative path from actual_base (found above)
+                # Find actual_base again (same logic as above)
+                possible_base_paths = [
+                    base_path,
+                    base_path / 'DR-Classification',
+                    base_path.parent / 'DR-Classification' if base_path.name == 'DR-Classification' else base_path,
+                ]
+                actual_base = base_path
+                for possible_base in possible_base_paths:
+                    if possible_base.exists():
+                        combined_dataset = possible_base / 'data' / 'combined_dataset'
+                        if combined_dataset.exists():
+                            actual_base = possible_base
+                            break
+                
                 try:
-                    rel_path = new_path.relative_to(base_path)
+                    rel_path = new_path.relative_to(actual_base)
                     df.at[idx, 'image_path'] = str(rel_path)
                     fixed += 1
                 except ValueError:
-                    # If can't make relative, use absolute
-                    df.at[idx, 'image_path'] = str(new_path)
-                    fixed += 1
+                    # If can't make relative, try relative to current working directory
+                    try:
+                        rel_path = new_path.relative_to(Path.cwd())
+                        df.at[idx, 'image_path'] = str(rel_path)
+                        fixed += 1
+                    except ValueError:
+                        # Last resort: use absolute path
+                        df.at[idx, 'image_path'] = str(new_path)
+                        fixed += 1
             else:
                 not_found.append(filename)
     
@@ -176,8 +218,29 @@ def fix_csv_paths(input_csv, output_csv=None, dataset_dir=None, base_path=None):
     # Verify
     print("\nVerifying first 10 paths...")
     verified = 0
+    # Find actual_base again for verification
+    possible_base_paths = [
+        base_path,
+        base_path / 'DR-Classification',
+        base_path.parent / 'DR-Classification' if base_path.name == 'DR-Classification' else base_path,
+    ]
+    actual_base = base_path
+    for possible_base in possible_base_paths:
+        if possible_base.exists():
+            combined_dataset = possible_base / 'data' / 'combined_dataset'
+            if combined_dataset.exists():
+                actual_base = possible_base
+                break
+    
     for idx, row in df.head(10).iterrows():
-        path = base_path / row['image_path']
+        path_str = row['image_path']
+        # Try relative to actual_base first
+        path = actual_base / path_str
+        if not path.exists():
+            # Try relative to current directory
+            path = Path(path_str)
+            if not path.is_absolute():
+                path = Path.cwd() / path_str
         if path.exists():
             verified += 1
     
