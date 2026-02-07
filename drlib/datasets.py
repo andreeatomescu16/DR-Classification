@@ -95,7 +95,10 @@ class DRDataset(Dataset):
             img = aug["image"]
         else:
             # Fallback: basic preprocessing if no transform provided
+            # This should not happen in normal training, but handle gracefully
             img = cv2.resize(img, (512, 512))
+            # Convert HWC to CHW format
+            img = np.transpose(img, (2, 0, 1))  # (H, W, C) -> (C, H, W)
             img = torch.from_numpy(img).float() / 255.0
             mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
             std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
