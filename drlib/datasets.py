@@ -21,50 +21,68 @@ class DRDataset(Dataset):
         # Try to load image, with fallback path resolution
         img_path = Path(row.image_path)
         
-        # If path doesn't exist, try to find it relative to CSV location or common locations
-        if not img_path.exists():
-            # Try relative to CSV file location
-            csv_path = Path(self.csv_path if hasattr(self, 'csv_path') else '.')
-            csv_dir = csv_path.parent if csv_path.is_file() else csv_path
-            
-            # Extract filename
-            filename = img_path.name
-            
-            # Try common locations
-            possible_paths = [
-                csv_dir / 'images' / filename,
-                csv_dir / 'data' / 'images' / filename,
-                csv_dir.parent / 'images' / filename,
-                csv_dir.parent / 'data' / 'images' / filename,
-                Path('images') / filename,
-                Path('data/images') / filename,
-            ]
-            
-            # Also try to find in any subdirectory
-            if csv_dir.exists():
-                for possible_dir in [csv_dir, csv_dir.parent]:
-                    if possible_dir.exists():
-                        # Search recursively for filename
-                        matches = list(possible_dir.rglob(filename))
-                        if matches:
-                            img_path = matches[0]
-                            break
-            
-            # If still not found, try the possible_paths
-            if not img_path.exists():
-                for possible_path in possible_paths:
-                    if possible_path.exists():
-                        img_path = possible_path
-                        break
-            
-            # If still not found, raise error
+        # If path is absolute, use it directly
+        if img_path.is_absolute():
             if not img_path.exists():
                 raise FileNotFoundError(
                     f"Image not found: {row.image_path}\n"
-                    f"Tried: {img_path}\n"
-                    f"Please check if the file exists or update the CSV with correct paths.\n"
-                    f"For Colab: Make sure images are uploaded to Google Drive and paths are relative."
+                    f"Please check if the file exists or update the CSV with correct paths."
                 )
+        else:
+            # Relative path - try multiple resolution strategies
+            if not img_path.exists():
+                # Strategy 1: Try relative to current working directory
+                cwd_path = Path.cwd() / img_path
+                if cwd_path.exists():
+                    img_path = cwd_path
+                else:
+                    # Strategy 2: Try relative to CSV file location
+                    csv_path = Path(self.csv_path if hasattr(self, 'csv_path') else '.')
+                    csv_dir = csv_path.parent if csv_path.is_file() else csv_path
+                    
+                    # Extract filename
+                    filename = img_path.name
+                    
+                    # Try common locations relative to CSV
+                    possible_paths = [
+                        csv_dir / img_path,  # Same relative path from CSV dir
+                        csv_dir.parent / img_path,  # One level up
+                        Path.cwd() / img_path,  # From current directory
+                        Path(img_path),  # Direct (in case we're already in right dir)
+                    ]
+                    
+                    # Strategy 3: If path starts with DR-Classification/, try from current dir
+                    if str(img_path).startswith('DR-Classification/'):
+                        possible_paths.insert(0, Path.cwd() / img_path)
+                    
+                    # Strategy 4: Search recursively for filename
+                    if csv_dir.exists():
+                        for possible_dir in [csv_dir, csv_dir.parent, Path.cwd()]:
+                            if possible_dir.exists():
+                                try:
+                                    matches = list(possible_dir.rglob(filename))
+                                    if matches:
+                                        img_path = matches[0]
+                                        break
+                                except (PermissionError, OSError):
+                                    continue
+                    
+                    # Try the possible_paths
+                    if not img_path.exists():
+                        for possible_path in possible_paths:
+                            if possible_path.exists():
+                                img_path = possible_path
+                                break
+                    
+                    # If still not found, raise error
+                    if not img_path.exists():
+                        raise FileNotFoundError(
+                            f"Image not found: {row.image_path}\n"
+                            f"Tried: {img_path}\n"
+                            f"Current directory: {Path.cwd()}\n"
+                            f"Please check if the file exists or update the CSV with correct paths.\n"
+                            f"For Colab: Make sure images are uploaded to Google Drive and paths are relative."
+                        )
         
         img = cv2.imread(str(img_path), cv2.IMREAD_COLOR)
         if img is None:
