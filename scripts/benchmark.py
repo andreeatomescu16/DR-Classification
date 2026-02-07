@@ -37,11 +37,6 @@ from torch.utils.data import DataLoader
 
 MODELS_TO_BENCHMARK = [
     {
-        'name': 'efficientnet_b2.ra_in1k',
-        'img_size': 384,
-        'display_name': 'EfficientNet-B2'
-    },
-    {
         'name': 'efficientnet_b4.ra2_in1k',
         'img_size': 384,
         'display_name': 'EfficientNet-B4'
@@ -393,7 +388,7 @@ def check_existing_checkpoint(model_config):
 def main():
     ap = argparse.ArgumentParser(description="Benchmark multiple DR classification models")
     ap.add_argument("--fold_csv", required=True, help="Path to fold CSV file")
-    ap.add_argument("--epochs", type=int, default=30, help="Number of training epochs")
+    ap.add_argument("--epochs", type=int, default=20, help="Number of training epochs (default: 20)")
     ap.add_argument("--batch_size", type=int, default=32, help="Batch size for training (32 for A10 GPU, 16 for smaller GPUs)")
     ap.add_argument("--eval_batch_size", type=int, default=32, help="Batch size for evaluation")
     ap.add_argument("--n_gradcam", type=int, default=20, help="Number of samples for Grad-CAM")
