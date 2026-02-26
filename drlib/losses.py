@@ -239,6 +239,7 @@ def create_loss(loss_type='ce', class_counts=None, **kwargs):
 
     elif loss_type == 'ordinal':
         num_classes = kwargs.get('num_classes', 5)
+        kwargs.pop('smoothing', None)  # OrdinalLoss does not use smoothing
         return OrdinalLoss(num_classes=num_classes, **kwargs)
     
     else:
