@@ -40,9 +40,14 @@ if [[ "${AVAIL}" -lt 15 ]]; then
   exit 1
 fi
 
-mkdir -p "${LOCAL_DIR}"
+mkdir -p "${LOCAL_DIR}/raw"
 echo "[1/2] Copying raw data (this may take 5–15 min)..."
-rsync -ah --info=progress2 "${SOURCE_DATA}/raw/" "${LOCAL_DIR}/raw/" || { echo "[error] rsync failed"; exit 1; }
+if command -v rsync &>/dev/null; then
+  rsync -ah --info=progress2 "${SOURCE_DATA}/raw/" "${LOCAL_DIR}/raw/" || { echo "[error] rsync failed"; exit 1; }
+else
+  echo "[info] rsync not found, using cp (install rsync for faster copies: apt-get install -y rsync)"
+  cp -a "${SOURCE_DATA}/raw"/. "${LOCAL_DIR}/raw/" || { echo "[error] cp failed"; exit 1; }
+fi
 
 echo ""
 echo "[2/2] Verifying..."
