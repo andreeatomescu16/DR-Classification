@@ -261,25 +261,29 @@ def compute_class_counts(fold_csv, split='train'):
     return full_counts
 
 
+def _worker_init_fn(worker_id):
+    """Limit OpenCV threads per worker to avoid oversubscription with many workers."""
+    import cv2
+    cv2.setNumThreads(1)
+
+
 def make_loaders(fold_csv, img_size=512, batch_size=16, num_workers=0, remove_borders=True):
     """Create train and validation dataloaders."""
     ds_tr = DRDataset(fold_csv, split="train", tfm=get_train_tf(img_size, remove_borders=remove_borders))
     ds_va = DRDataset(fold_csv, split="val", tfm=get_val_tf(img_size, remove_borders=remove_borders))
-    
-    dl_tr = DataLoader(
-        ds_tr,
+
+    dl_kwargs = dict(
         batch_size=batch_size,
-        shuffle=True,
         num_workers=num_workers,
-        pin_memory=True if torch.cuda.is_available() else False
+        pin_memory=torch.cuda.is_available(),
     )
-    dl_va = DataLoader(
-        ds_va,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=True if torch.cuda.is_available() else False
-    )
+    if num_workers > 0:
+        dl_kwargs["persistent_workers"] = True
+        dl_kwargs["prefetch_factor"] = 4
+        dl_kwargs["worker_init_fn"] = _worker_init_fn
+
+    dl_tr = DataLoader(ds_tr, shuffle=True, **dl_kwargs)
+    dl_va = DataLoader(ds_va, shuffle=False, **dl_kwargs)
     return dl_tr, dl_va
 
 
