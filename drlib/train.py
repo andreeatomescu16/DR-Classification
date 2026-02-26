@@ -387,7 +387,7 @@ def main():
         log_every_n_steps=10,
         enable_progress_bar=True,
         callbacks=callbacks,
-        deterministic=True
+        deterministic="warn"
     )
     
     trainer.fit(model, dl_tr, dl_va)
