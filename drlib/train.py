@@ -313,6 +313,8 @@ def main():
     ap.add_argument("--monitor", default="val_qwk", help="Metric to monitor for checkpointing")
     ap.add_argument("--patience", type=int, default=10, help="Early stopping patience")
     ap.add_argument("--seed", type=int, default=42, help="Random seed")
+    ap.add_argument("--precision", default="32-true", choices=["32-true", "16-mixed", "bf16-mixed"],
+                    help="Training precision (16-mixed = AMP)")
     
     args = ap.parse_args()
     
@@ -380,7 +382,7 @@ def main():
         max_epochs=args.epochs,
         accelerator="auto",
         devices=1,
-        precision="32-true",
+        precision=args.precision,
         log_every_n_steps=10,
         enable_progress_bar=True,
         callbacks=callbacks,
