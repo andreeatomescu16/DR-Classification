@@ -148,7 +148,10 @@ class OrdinalLoss(nn.Module):
         levels = torch.arange(1, self.num_classes, device=logits.device, dtype=torch.long)
         labels = (targets.unsqueeze(1) >= levels).float()  # (B, K-1)
 
-        bce = F.binary_cross_entropy(cum_probs[:, 1:], labels, reduction='none')
+        # Use BCE with logits (autocast-safe); logit(p) = log(p/(1-p))
+        cum_p = torch.clamp(cum_probs[:, 1:], min=1e-7, max=1.0 - 1e-7)
+        cum_logits = torch.logit(cum_p)
+        bce = F.binary_cross_entropy_with_logits(cum_logits, labels, reduction='none')
         if self.reduction == 'mean':
             return bce.mean()
         elif self.reduction == 'sum':
