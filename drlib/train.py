@@ -65,8 +65,9 @@ class DRModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=['class_counts'])
         
-        # Create model
-        self.model = create_model(model_name, num_classes=5, pretrained=True)
+        # Create model (hybrid_coatmini is from-scratch, no pretrained)
+        pretrained = model_name != "hybrid_coatmini"
+        self.model = create_model(model_name, num_classes=5, pretrained=pretrained)
         
         # Freeze backbone if requested
         if freeze_backbone:
@@ -305,7 +306,7 @@ def main():
     ap.add_argument("--warmup_epochs", type=int, default=0, help="Warmup epochs")
     
     # Loss arguments
-    ap.add_argument("--loss", choices=['ce', 'weighted_ce', 'focal', 'label_smoothing'], default='ce', help="Loss function")
+    ap.add_argument("--loss", choices=['ce', 'weighted_ce', 'focal', 'label_smoothing', 'ordinal'], default='ce', help="Loss function")
     ap.add_argument("--use_class_weights", action='store_true', help="Compute class weights from data")
     ap.add_argument("--focal_gamma", type=float, default=2.0, help="Focal loss gamma")
     

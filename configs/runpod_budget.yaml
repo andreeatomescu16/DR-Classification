@@ -1,18 +1,18 @@
 # RunPod budget preset (<$50)
-# Use with: FOLDS_DIR=/workspace/data/folds bash scripts/train_fold0.sh
-# Override: MODEL=efficientnet_b4.ra2_in1k IMG_SIZE=384 BATCH_SIZE=16
+# Hybrid: bash scripts/train_hybrid_fold0.sh
+# EfficientNet: MODEL=efficientnet_b4.ra2_in1k IMG_SIZE=384 bash scripts/train_fold0.sh
 
 data:
   fold_csv: "/workspace/data/folds/fold0.csv"
-  img_size: 384
-  batch_size: 16
+  img_size: 224
+  batch_size: 24
   num_workers: 8
   remove_borders: true
 
 model:
-  name: "efficientnet_b4.ra2_in1k"
+  name: "hybrid_coatmini"
   num_classes: 5
-  pretrained: true
+  pretrained: false
 
 training:
   epochs: 40
@@ -21,8 +21,7 @@ training:
   lr_scheduler: "cosine"
   warmup_epochs: 0
   loss:
-    type: "weighted_ce"
-    use_class_weights: true
+    type: "ordinal"
 
 callbacks:
   monitor: "val_qwk"
@@ -31,3 +30,5 @@ callbacks:
 # AMP for faster training
 precision: "16-mixed"
 seed: 42
+
+# Sanity check: SANITY=1 bash scripts/train_hybrid_fold0.sh (15 ep @224)

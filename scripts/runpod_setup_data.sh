@@ -59,12 +59,24 @@ kaggle datasets download -d "${DATASET_SLUG}" -p "${RAW_DIR}" --force
 
 echo ""
 echo "[4/7] Unzip dataset..."
-ZIP_FILE="$(ls -1 *.zip | head -n 1 || true)"
+ZIP_FILE="$(ls -1 *.zip 2>/dev/null | head -n 1 || true)"
 if [[ -z "${ZIP_FILE}" ]]; then
   echo "[error] No zip file found in ${RAW_DIR} after Kaggle download."
   exit 1
 fi
-unzip -o "${ZIP_FILE}" -d "${RAW_DIR}" >/dev/null
+if command -v unzip &>/dev/null; then
+  unzip -o "${ZIP_FILE}" -d "${RAW_DIR}" >/dev/null || { echo "[error] unzip failed"; exit 1; }
+else
+  echo "[warn] unzip not found, using Python..."
+  "${PYTHON_BIN}" -c "
+import zipfile
+from pathlib import Path
+z = Path('${RAW_DIR}') / '${ZIP_FILE}'
+with zipfile.ZipFile(str(z), 'r') as f:
+    f.extractall('${RAW_DIR}')
+print('[ok] Unzipped via Python')
+" || { echo "[error] Python unzip failed"; exit 1; }
+fi
 echo "[ok] Unzipped ${ZIP_FILE}"
 
 echo ""
@@ -87,13 +99,20 @@ fi
 echo "[ok] Found dataset root: ${AUG_DIR}"
 
 "${PYTHON_BIN}" - <<PY
+import sys
 from pathlib import Path
 root = Path("${RAW_DIR}")
 matches = sorted([p for p in root.rglob("augmented_resized_V2") if p.is_dir()], key=lambda p: len(str(p)))
+if not matches:
+    print("[error] augmented_resized_V2 empty or not found")
+    sys.exit(1)
 aug = matches[0]
 cnt = 0
 for ext in ("*.jpg", "*.jpeg", "*.png"):
     cnt += len(list(aug.rglob(ext)))
+if cnt == 0:
+    print("[error] No images discovered")
+    sys.exit(1)
 print(f"[ok] discovered images under augmented_resized_V2: {cnt}")
 PY
 
@@ -106,7 +125,18 @@ cd "${REPO_ROOT}"
   --n_splits 5 \
   --seed 42 \
   --img_size 224 \
-  --batch_size 4
+  --batch_size 4 || { echo "[error] build_runpod_folds.py failed (folds not created)"; exit 1; }
+
+if [[ ! -f "${FOLDS_DIR}/master.csv" ]]; then
+  echo "[error] master.csv not created"
+  exit 1
+fi
+for i in 0 1 2 3 4; do
+  if [[ ! -f "${FOLDS_DIR}/fold${i}.csv" ]]; then
+    echo "[error] fold${i}.csv not created"
+    exit 1
+  fi
+done
 
 echo ""
 echo "[7/7] Verification summary..."

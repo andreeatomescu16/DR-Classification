@@ -124,6 +124,38 @@ class FocalLoss(nn.Module):
         return torch.tensor(alpha, dtype=torch.float32)
 
 
+class OrdinalLoss(nn.Module):
+    """
+    Ordinal loss (CORAL-style) for ordinal classification.
+    Treats each level as cumulative: P(Y>=k) via K-1 binary outputs.
+    Penalizes distance-aware errors; QWK-oriented.
+    """
+    def __init__(self, num_classes=5, reduction='mean'):
+        super().__init__()
+        self.num_classes = num_classes
+        self.reduction = reduction
+
+    def forward(self, logits, targets):
+        """
+        logits: (B, num_classes) - standard logits
+        targets: (B,) - class indices 0..K-1
+        """
+        probs = F.softmax(logits, dim=1)
+        # P(Y >= j) = 1 - P(Y < j) = 1 - sum_{k<j} P(Y=k)
+        cum_sum = torch.cumsum(probs, dim=1)  # (B, K): [p0, p0+p1, ..., 1]
+        cum_probs = torch.cat([torch.ones_like(probs[:, :1]), 1 - cum_sum[:, :-1]], dim=1)  # P(Y>=0)=1, P(Y>=1), ...
+        # cum_probs[:, j] = P(Y >= j), j=0..K-1. Use j=1..K-1 for K-1 binary tasks.
+        levels = torch.arange(1, self.num_classes, device=logits.device, dtype=torch.long)
+        labels = (targets.unsqueeze(1) >= levels).float()  # (B, K-1)
+
+        bce = F.binary_cross_entropy(cum_probs[:, 1:], labels, reduction='none')
+        if self.reduction == 'mean':
+            return bce.mean()
+        elif self.reduction == 'sum':
+            return bce.sum()
+        return bce
+
+
 class LabelSmoothingLoss(nn.Module):
     """
     Label Smoothing Cross-Entropy Loss for regularization.
@@ -204,6 +236,10 @@ def create_loss(loss_type='ce', class_counts=None, **kwargs):
         num_classes = kwargs.get('num_classes', 5)
         smoothing = kwargs.get('smoothing', 0.1)
         return LabelSmoothingLoss(num_classes=num_classes, smoothing=smoothing, **kwargs)
+
+    elif loss_type == 'ordinal':
+        num_classes = kwargs.get('num_classes', 5)
+        return OrdinalLoss(num_classes=num_classes, **kwargs)
     
     else:
         raise ValueError(f"Unknown loss type: {loss_type}")
