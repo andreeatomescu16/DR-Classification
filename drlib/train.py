@@ -267,10 +267,10 @@ def _worker_init_fn(worker_id):
     cv2.setNumThreads(1)
 
 
-def make_loaders(fold_csv, img_size=512, batch_size=16, num_workers=0, remove_borders=True):
+def make_loaders(fold_csv, img_size=512, batch_size=16, num_workers=0, remove_borders=True, data_root=None):
     """Create train and validation dataloaders."""
-    ds_tr = DRDataset(fold_csv, split="train", tfm=get_train_tf(img_size, remove_borders=remove_borders))
-    ds_va = DRDataset(fold_csv, split="val", tfm=get_val_tf(img_size, remove_borders=remove_borders))
+    ds_tr = DRDataset(fold_csv, split="train", tfm=get_train_tf(img_size, remove_borders=remove_borders), data_root=data_root)
+    ds_va = DRDataset(fold_csv, split="val", tfm=get_val_tf(img_size, remove_borders=remove_borders), data_root=data_root)
 
     dl_kwargs = dict(
         batch_size=batch_size,
@@ -296,6 +296,7 @@ def main():
     ap.add_argument("--batch_size", type=int, default=16, help="Batch size")
     ap.add_argument("--num_workers", type=int, default=0, help="Number of data loader workers")
     ap.add_argument("--remove_borders", action='store_true', default=True, help="Remove black borders")
+    ap.add_argument("--data_root", default=None, help="Override data root for images (e.g. /tmp/localdata for local NVMe)")
     
     # Model arguments
     ap.add_argument("--model", default="efficientnet_b3", help="Model architecture")
@@ -339,7 +340,8 @@ def main():
         args.img_size,
         args.batch_size,
         args.num_workers,
-        args.remove_borders
+        args.remove_borders,
+        data_root=args.data_root
     )
     
     # Filter loss kwargs based on loss type

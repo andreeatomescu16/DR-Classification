@@ -80,11 +80,30 @@ bash scripts/verify_runpod_ready.sh
 
 ---
 
+## 6b. Copy data to local storage (recommended — much faster I/O)
+
+`/workspace` is remote storage; reading many images from it is slow. Copy to local NVMe first:
+
+```bash
+bash scripts/runpod_copy_to_local.sh
+```
+
+This copies to `/tmp/localdata`. Then train with:
+
+```bash
+DATA_ROOT=/tmp/localdata NUM_WORKERS=16 bash scripts/train_hybrid_fold0.sh
+```
+
+---
+
 ## 7. Start training (tmux)
 
 ```bash
 tmux new -s drtrain
 cd /workspace/DR-Classification
+# With local data (recommended):
+DATA_ROOT=/tmp/localdata NUM_WORKERS=16 bash scripts/train_hybrid_fold0.sh
+# Or without (slower):
 bash scripts/train_hybrid_fold0.sh
 ```
 

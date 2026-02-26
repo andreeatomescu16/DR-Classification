@@ -17,6 +17,7 @@ IMG_SIZE="${IMG_SIZE:-224}"
 BATCH_SIZE="${BATCH_SIZE:-24}"
 EPOCHS="${EPOCHS:-40}"
 NUM_WORKERS="${NUM_WORKERS:-8}"
+DATA_ROOT="${DATA_ROOT:-}"
 PRECISION="${PRECISION:-16-mixed}"
 LOSS="${LOSS:-ordinal}"
 SANITY="${SANITY:-0}"
@@ -37,10 +38,15 @@ echo "Training ${MODEL} on fold0"
 echo "  fold_csv=${FOLD_CSV}"
 echo "  img_size=${IMG_SIZE} batch_size=${BATCH_SIZE} epochs=${EPOCHS}"
 echo "  loss=${LOSS} precision=${PRECISION}"
+[[ -n "${DATA_ROOT}" ]] && echo "  data_root=${DATA_ROOT} (local storage)"
 echo ""
+
+DATA_ROOT_ARGS=()
+[[ -n "${DATA_ROOT}" ]] && DATA_ROOT_ARGS=(--data_root "${DATA_ROOT}")
 
 python -m drlib.train \
   --fold_csv "${FOLD_CSV}" \
+  "${DATA_ROOT_ARGS[@]}" \
   --model "${MODEL}" \
   --img_size "${IMG_SIZE}" \
   --batch_size "${BATCH_SIZE}" \
