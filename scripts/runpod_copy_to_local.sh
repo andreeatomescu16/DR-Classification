@@ -26,10 +26,17 @@ if [[ ! -d "${SOURCE_DATA}/raw" ]]; then
 fi
 
 # Check target has space (need ~20–30GB for augmented_resized_V2)
-AVAIL=$(df -BG "${LOCAL_DIR}" 2>/dev/null | tail -1 | awk '{print $4}' | tr -d 'G' || echo "0")
-if [[ -n "${AVAIL}" ]] && [[ "${AVAIL}" -lt 15 ]]; then
-  echo "[warn] Low space on ${LOCAL_DIR}: ${AVAIL}GB free. Need ~20GB+ for dataset."
-  echo "Try: LOCAL_DIR=/mnt/something bash $0"
+# Use parent dir for df when target doesn't exist yet
+CHECK_DIR="${LOCAL_DIR}"
+[[ -d "${CHECK_DIR}" ]] || CHECK_DIR="$(dirname "${LOCAL_DIR}")"
+AVAIL=$(df -BG "${CHECK_DIR}" 2>/dev/null | tail -1 | awk '{print $4}' | tr -d 'G' || true)
+if [[ -z "${AVAIL}" ]] || ! [[ "${AVAIL}" =~ ^[0-9]+$ ]]; then
+  AVAIL=$(df -h "${CHECK_DIR}" 2>/dev/null | tail -1 | awk '{gsub(/[GTM]/, "", $4); print $4+0}' || echo "0")
+fi
+[[ -z "${AVAIL}" ]] && AVAIL=0
+if [[ "${AVAIL}" -lt 15 ]]; then
+  echo "[warn] Low space on ${CHECK_DIR}: ${AVAIL}GB free. Need ~20GB+ for dataset."
+  echo "Try: LOCAL_DIR=/dev/shm/localdata bash $0  (or another path with more space)"
   exit 1
 fi
 
