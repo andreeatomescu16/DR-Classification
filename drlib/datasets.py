@@ -46,12 +46,18 @@ class DRDataset(Dataset):
             return img_path
 
         # Fast path: map relative CSV path onto data_root.
+        # Fold CSV stores paths like: ../raw/augmented_resized_V2/train/3/file.jpg
+        # For data_root=/tmp/localdata we want:
+        #   /tmp/localdata/augmented_resized_V2/train/3/file.jpg
         if self.data_root is not None:
-            parts = img_path.parts
+            parts = list(img_path.parts)
+            # Strip leading ".." if present
             if parts and parts[0] == "..":
-                img_rel = Path(*parts[1:])  # drop leading ".." -> e.g. "raw/..."
-            else:
-                img_rel = img_path
+                parts = parts[1:]
+            # Strip leading "raw" if present
+            if parts and parts[0] == "raw":
+                parts = parts[1:]
+            img_rel = Path(*parts) if parts else Path()
             return self.data_root / img_rel
 
         # Fallback path (no data_root): resolve relative to folds directory.
