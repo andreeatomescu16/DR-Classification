@@ -65,8 +65,9 @@ class DRModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=['class_counts'])
         
-        # Create model (hybrid_coatmini is from-scratch, no pretrained)
-        pretrained = model_name != "hybrid_coatmini"
+        # Custom hybrid models are trained from scratch; timm models use pretrained weights.
+        from drlib.models import _SCRATCH_MODELS
+        pretrained = model_name not in _SCRATCH_MODELS
         self.model = create_model(model_name, num_classes=5, pretrained=pretrained)
         
         # Freeze backbone if requested

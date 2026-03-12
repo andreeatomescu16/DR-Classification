@@ -39,14 +39,27 @@ Thumbs.db
 # data/
 # *.csv
 
-# Results (optional - uncomment if you don't want to commit results)
-# benchmark_results/
-# evaluation_results/
-# analysis_results/
+# Generated results and evaluation outputs
+evaluation_results/
+benchmark_results/
+benchmark_results_test/
+analysis_results/
 
 # Logs
 *.log
 benchmark_log.txt
+
+# Archives / large binary exports
+*.tar.gz
+*.tar.bz2
+*.zip
+*.gz
+
+# Raw dataset images (large, downloaded on RunPod)
+data/raw/
+
+# Environment secrets
+.env
 
 # Temporary files
 *.tmp

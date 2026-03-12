@@ -237,10 +237,37 @@ def build_hybrid_coatmini(
     drop_rate: float = 0.0,
     **kwargs
 ) -> HybridCoAtMini:
-    """Build hybrid_coatmini model (random init, no pretrained)."""
+    """Build hybrid_coatmini model (random init, no pretrained).
+
+    Config: embed_dims=(64,128,256,512), depths=(2,2,2,2) → ~8.5M params.
+    """
     return HybridCoAtMini(
         num_classes=num_classes,
         embed_dims=(64, 128, 256, 512),
+        depths=(2, 2, 2, 2),
+        window_size=7,
+        num_heads=8,
+        drop_rate=drop_rate,
+        **kwargs
+    )
+
+
+def build_hybrid_coat_small(
+    num_classes: int = 5,
+    drop_rate: float = 0.0,
+    **kwargs
+) -> HybridCoAtMini:
+    """Build hybrid_coat_small model (random init, no pretrained).
+
+    A moderately wider variant of hybrid_coatmini obtained by scaling
+    embed_dims by 1.25x: (80,160,320,640). Everything else is identical
+    (depths, window_size, num_heads), keeping the comparison clean.
+
+    Config: embed_dims=(80,160,320,640), depths=(2,2,2,2) → ~13.3M params.
+    """
+    return HybridCoAtMini(
+        num_classes=num_classes,
+        embed_dims=(80, 160, 320, 640),
         depths=(2, 2, 2, 2),
         window_size=7,
         num_heads=8,

@@ -4,7 +4,10 @@ Model architectures for Diabetic Retinopathy classification.
 
 from typing import Optional
 
-from .hybrid_coatmini import build_hybrid_coatmini
+from .hybrid_coatmini import build_hybrid_coatmini, build_hybrid_coat_small
+
+# Custom models trained from scratch (no pretrained weights available).
+_SCRATCH_MODELS = {"hybrid_coatmini", "hybrid_coat_small"}
 
 
 def create_model(
@@ -14,9 +17,11 @@ def create_model(
     drop_rate=0.0,
     drop_path_rate=0.0
 ):
-    """Create a classification model. Supports timm models + hybrid_coatmini."""
+    """Create a classification model. Supports timm models + custom hybrids."""
     if name == "hybrid_coatmini":
         return build_hybrid_coatmini(num_classes=num_classes, drop_rate=drop_rate)
+    if name == "hybrid_coat_small":
+        return build_hybrid_coat_small(num_classes=num_classes, drop_rate=drop_rate)
 
     import timm
     all_models = timm.list_models(pretrained=pretrained)
@@ -43,8 +48,8 @@ def create_model(
 def get_model_info(name: str) -> dict:
     """Get model info (params, etc.)."""
     try:
-        if name == "hybrid_coatmini":
-            model = build_hybrid_coatmini(num_classes=5)
+        if name in _SCRATCH_MODELS:
+            model = create_model(name, num_classes=5, pretrained=False)
         else:
             import timm
             model = timm.create_model(name, pretrained=False, num_classes=5)
@@ -61,6 +66,7 @@ RECOMMENDED_MODELS = {
     'transformer': 'vit_base_patch16_224',
     'large': 'convnext_large',
     'hybrid': 'hybrid_coatmini',
+    'hybrid_small': 'hybrid_coat_small',
 }
 
 
@@ -71,4 +77,4 @@ def create_recommended_model(profile='balanced', num_classes=5, pretrained=True,
     return create_model(RECOMMENDED_MODELS[profile], num_classes, pretrained, **kwargs)
 
 
-__all__ = ["create_model", "get_model_info", "create_recommended_model", "RECOMMENDED_MODELS"]
+__all__ = ["create_model", "get_model_info", "create_recommended_model", "RECOMMENDED_MODELS", "_SCRATCH_MODELS"]
