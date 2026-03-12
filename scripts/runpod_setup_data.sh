@@ -29,11 +29,17 @@ mkdir -p "${RAW_DIR}" "${FOLDS_DIR}"
 
 echo ""
 echo "[1/7] Installing Python dependencies (if missing)..."
-"${PYTHON_BIN}" -m pip install --upgrade pip >/dev/null
-if [[ -f "${REPO_ROOT}/requirements.txt" ]]; then
-  "${PYTHON_BIN}" -m pip install -r "${REPO_ROOT}/requirements.txt" >/dev/null
+# Set SKIP_DEPS=1 to bypass this step when packages are already installed.
+if [[ "${SKIP_DEPS:-0}" == "1" ]]; then
+  echo "[skip] SKIP_DEPS=1 — assuming packages already installed."
+else
+  "${PYTHON_BIN}" -m pip install --upgrade pip --quiet
+  if [[ -f "${REPO_ROOT}/requirements.txt" ]]; then
+    echo "  Installing from requirements.txt (progress shown below)..."
+    "${PYTHON_BIN}" -m pip install -r "${REPO_ROOT}/requirements.txt" --quiet --progress-bar on
+  fi
+  "${PYTHON_BIN}" -m pip install kaggle pandas scikit-learn --quiet
 fi
-"${PYTHON_BIN}" -m pip install kaggle pandas scikit-learn >/dev/null
 
 echo ""
 echo "[2/7] Kaggle API credential setup..."
