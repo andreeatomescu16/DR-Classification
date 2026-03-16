@@ -49,7 +49,11 @@ def load_model(checkpoint_path, device='cpu'):
     
     # Create model
     from drlib.train import DRModule
-    model = DRModule.load_from_checkpoint(checkpoint_path)
+    # strict=False to allow loading checkpoints whose loss objects
+    # (e.g. focal with class weights) don't exactly match the current
+    # loss factory implementation. Metrics only depend on the model
+    # weights, not on the training loss buffers.
+    model = DRModule.load_from_checkpoint(checkpoint_path, strict=False)
     model.eval()
     model.to(device)
     
