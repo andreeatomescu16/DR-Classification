@@ -46,6 +46,8 @@ class DRModule(L.LightningModule):
         lr_scheduler='cosine',
         weight_decay=1e-4,
         warmup_epochs=0,
+        focal_gamma=2.0,
+        weight_mode='sqrt_inverse',
         **loss_kwargs
     ):
         """
@@ -53,42 +55,53 @@ class DRModule(L.LightningModule):
             model_name: Model architecture name
             lr: Initial learning rate
             img_size: Image size (square)
-            loss_type: 'ce', 'weighted_ce', 'focal', or 'label_smoothing'
-            class_counts: Array of class frequencies (for weighted losses)
+            loss_type: One of 'ce', 'weighted_ce', 'focal', 'focal_weighted',
+                       'ce_weighted', 'label_smoothing', 'ordinal'
+            class_counts: Array of per-class sample counts (for weighted losses).
+                          Converted to a label->count dict before passing to the
+                          loss factory.
             freeze_backbone: Whether to freeze backbone initially
             unfreeze_epoch: Epoch to unfreeze backbone (None = never freeze)
             lr_scheduler: 'cosine', 'step', 'plateau', or None
             weight_decay: Weight decay for optimizer
             warmup_epochs: Number of warmup epochs
-            **loss_kwargs: Additional arguments for loss function
+            focal_gamma: Gamma parameter for focal variants (default 2.0)
+            weight_mode: Weight-building mode for weighted variants —
+                         'sqrt_inverse' (default) or 'inverse'
+            **loss_kwargs: Additional arguments forwarded to the loss factory
         """
         super().__init__()
         self.save_hyperparameters(ignore=['class_counts'])
-        
+
         # Custom hybrid models are trained from scratch; timm models use pretrained weights.
         from drlib.models import _SCRATCH_MODELS
         pretrained = model_name not in _SCRATCH_MODELS
         self.model = create_model(model_name, num_classes=5, pretrained=pretrained)
-        
+
         # Freeze backbone if requested
         if freeze_backbone:
             self._freeze_backbone()
-        
-        # Create loss function (filter kwargs based on loss type)
-        # Note: smoothing is used internally for weight computation, not passed to loss
-        filtered_kwargs = {}
-        if loss_type == 'focal':
-            filtered_kwargs['gamma'] = loss_kwargs.get('gamma', 2.0)
-        elif loss_type == 'label_smoothing':
-            filtered_kwargs['num_classes'] = 5
-            filtered_kwargs['smoothing'] = loss_kwargs.get('label_smoothing', 0.1)
-        
+
+        # Build per-loss kwargs; the factory consumes what it needs and ignores the rest
+        factory_kwargs = {}
+        if loss_type in ('focal', 'focal_weighted'):
+            factory_kwargs['gamma'] = focal_gamma
+        if loss_type in ('focal_weighted', 'ce_weighted'):
+            factory_kwargs['weight_mode'] = weight_mode
+        if loss_type == 'label_smoothing':
+            factory_kwargs['num_classes'] = 5
+            factory_kwargs['smoothing'] = loss_kwargs.get('label_smoothing', 0.1)
+        if loss_type == 'weighted_ce':
+            factory_kwargs['smoothing'] = loss_kwargs.get('smoothing', 1.0)
+
         self.criterion = create_loss(
             loss_type=loss_type,
             class_counts=class_counts,
-            smoothing=loss_kwargs.get('smoothing', 1.0) if loss_type in ['weighted_ce', 'focal'] else None,
-            **filtered_kwargs
+            **factory_kwargs
         )
+
+        # FocalLoss registers its weight as a buffer, so Lightning's .to(device)
+        # will move it automatically — no hard-coded device strings here.
         
         # Metrics storage
         self.train_preds, self.train_targs, self.train_probs = [], [], []
@@ -312,9 +325,21 @@ def main():
     ap.add_argument("--warmup_epochs", type=int, default=0, help="Warmup epochs")
     
     # Loss arguments
-    ap.add_argument("--loss", choices=['ce', 'weighted_ce', 'focal', 'label_smoothing', 'ordinal'], default='ce', help="Loss function")
+    ap.add_argument(
+        "--loss",
+        choices=['ce', 'weighted_ce', 'focal', 'focal_weighted', 'ce_weighted',
+                 'label_smoothing', 'ordinal'],
+        default='ce',
+        help="Loss function"
+    )
     ap.add_argument("--use_class_weights", action='store_true', help="Compute class weights from data")
     ap.add_argument("--focal_gamma", type=float, default=2.0, help="Focal loss gamma")
+    ap.add_argument(
+        "--weight_mode",
+        choices=['inverse', 'sqrt_inverse'],
+        default='sqrt_inverse',
+        help="Class-weight formula for focal_weighted / ce_weighted losses"
+    )
     
     # Other arguments
     ap.add_argument("--monitor", default="val_qwk", help="Metric to monitor for checkpointing")
@@ -329,9 +354,10 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     
-    # Compute class counts if needed
+    # Compute class counts if needed (weighted losses require them)
+    _weighted_losses = {'weighted_ce', 'focal_weighted', 'ce_weighted'}
     class_counts = None
-    if args.use_class_weights or args.loss in ['weighted_ce', 'focal']:
+    if args.use_class_weights or args.loss in _weighted_losses:
         class_counts = compute_class_counts(args.fold_csv, split='train')
         print(f"Class counts: {class_counts}")
     
@@ -345,13 +371,6 @@ def main():
         data_root=args.data_root
     )
     
-    # Filter loss kwargs based on loss type
-    loss_kwargs = {}
-    if args.loss == 'focal':
-        loss_kwargs['gamma'] = args.focal_gamma
-    elif args.loss == 'label_smoothing':
-        loss_kwargs['label_smoothing'] = getattr(args, 'label_smoothing', 0.1)
-    
     # Create model
     model = DRModule(
         model_name=args.model,
@@ -364,7 +383,8 @@ def main():
         lr_scheduler=args.lr_scheduler if args.lr_scheduler != 'none' else None,
         weight_decay=args.weight_decay,
         warmup_epochs=args.warmup_epochs,
-        **loss_kwargs
+        focal_gamma=args.focal_gamma,
+        weight_mode=args.weight_mode,
     )
     
     # Callbacks
