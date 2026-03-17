@@ -4,10 +4,10 @@ Model architectures for Diabetic Retinopathy classification.
 
 from typing import Optional
 
-from .hybrid_coatmini import build_hybrid_coatmini, build_hybrid_coat_small
+from .hybrid_coatmini import build_hybrid_coatmini, build_hybrid_coat_small, build_hybrid_coat_deep
 
 # Custom models trained from scratch (no pretrained weights available).
-_SCRATCH_MODELS = {"hybrid_coatmini", "hybrid_coat_small"}
+_SCRATCH_MODELS = {"hybrid_coatmini", "hybrid_coat_small", "hybrid_coat_deep"}
 
 
 def create_model(
@@ -22,6 +22,12 @@ def create_model(
         return build_hybrid_coatmini(num_classes=num_classes, drop_rate=drop_rate)
     if name == "hybrid_coat_small":
         return build_hybrid_coat_small(num_classes=num_classes, drop_rate=drop_rate)
+    if name == "hybrid_coat_deep":
+        return build_hybrid_coat_deep(
+            num_classes=num_classes,
+            drop_rate=drop_rate,
+            drop_path_rate=drop_path_rate,
+        )
 
     import timm
     all_models = timm.list_models(pretrained=pretrained)
@@ -67,6 +73,7 @@ RECOMMENDED_MODELS = {
     'large': 'convnext_large',
     'hybrid': 'hybrid_coatmini',
     'hybrid_small': 'hybrid_coat_small',
+    'hybrid_deep': 'hybrid_coat_deep',
 }
 
 

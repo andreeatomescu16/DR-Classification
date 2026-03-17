@@ -5,6 +5,7 @@ Quick profiling script: parameter count, GPU memory, and per-step timing.
 Usage (RunPod, from repo root):
     python scripts/profile_model.py --model hybrid_coatmini
     python scripts/profile_model.py --model hybrid_coat_small
+    python scripts/profile_model.py --model hybrid_coat_deep
     python scripts/profile_model.py --model hybrid_coat_small --batch_size 16
     python scripts/profile_model.py --compare  # side-by-side table
 """
@@ -157,7 +158,7 @@ def profile_model(
 def main():
     ap = argparse.ArgumentParser(description="Profile one or more DR models")
     ap.add_argument("--model", default="hybrid_coat_small",
-                    help="Model name (hybrid_coatmini | hybrid_coat_small | any timm model)")
+                    help="Model name (hybrid_coatmini | hybrid_coat_small | hybrid_coat_deep | any timm model)")
     ap.add_argument("--img_size", type=int, default=224)
     ap.add_argument("--batch_size", type=int, default=24)
     ap.add_argument("--precision", default="16-mixed",
@@ -166,11 +167,11 @@ def main():
     ap.add_argument("--n_warmup", type=int, default=3)
     ap.add_argument("--n_timed", type=int, default=10)
     ap.add_argument("--compare", action="store_true",
-                    help="Profile both hybrid_coatmini and hybrid_coat_small side-by-side")
+                    help="Profile hybrid_coatmini, hybrid_coat_small, and hybrid_coat_deep side-by-side")
     args = ap.parse_args()
 
     if args.compare:
-        models = ["hybrid_coatmini", "hybrid_coat_small"]
+        models = ["hybrid_coatmini", "hybrid_coat_small", "hybrid_coat_deep"]
         results = []
         for m in models:
             r = profile_model(

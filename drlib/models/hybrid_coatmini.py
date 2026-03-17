@@ -23,6 +23,29 @@ def _make_divisible(v: float, divisor: int = 8) -> int:
     return max(divisor, int(v + divisor / 2) // divisor * divisor)
 
 
+def drop_path(x: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
+    """Drop paths (Stochastic Depth) per sample (timm-style)."""
+    if drop_prob == 0.0 or not training:
+        return x
+    keep_prob = 1.0 - drop_prob
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+    random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
+    if keep_prob > 0.0:
+        random_tensor = random_tensor.div(keep_prob)
+    return x * random_tensor
+
+
+class DropPath(nn.Module):
+    """Drop paths (Stochastic Depth) per sample (timm-style)."""
+
+    def __init__(self, drop_prob: float = 0.0):
+        super().__init__()
+        self.drop_prob = float(drop_prob)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return drop_path(x, self.drop_prob, self.training)
+
+
 class ConvBNReLU(nn.Module):
     def __init__(self, in_ch: int, out_ch: int, kernel: int = 3, stride: int = 1):
         super().__init__()
@@ -72,11 +95,19 @@ class WindowAttention(nn.Module):
 
 class SwinBlock(nn.Module):
     """Swin-like block: window attention + FFN."""
-    def __init__(self, dim: int, num_heads: int = 8, window_size: int = 7, mlp_ratio: float = 4.0):
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int = 8,
+        window_size: int = 7,
+        mlp_ratio: float = 4.0,
+        drop_path_prob: float = 0.0,
+    ):
         super().__init__()
         self.norm1 = nn.LayerNorm(dim)
         self.attn = WindowAttention(dim, num_heads, window_size)
         self.norm2 = nn.LayerNorm(dim)
+        self.drop_path = DropPath(drop_path_prob) if drop_path_prob > 0.0 else nn.Identity()
         mlp_hidden = int(dim * mlp_ratio)
         self.mlp = nn.Sequential(
             nn.Linear(dim, mlp_hidden),
@@ -85,8 +116,8 @@ class SwinBlock(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.attn(self.norm1(x))
-        return x + self.mlp(self.norm2(x))
+        x = x + self.drop_path(self.attn(self.norm1(x)))
+        return x + self.drop_path(self.mlp(self.norm2(x)))
 
 
 def _pad_to_multiple(x: torch.Tensor, window_size: int):
@@ -138,6 +169,7 @@ class HybridCoAtMini(nn.Module):
         window_size: int = 7,
         num_heads: int = 8,
         drop_rate: float = 0.0,
+        drop_path_rate: float = 0.0,
     ):
         super().__init__()
         self.num_classes = num_classes
@@ -155,9 +187,15 @@ class HybridCoAtMini(nn.Module):
         self.stage2 = self._make_cnn_stage(embed_dims[1], embed_dims[2], depths[1], stride=2)
 
         # Stage 3-4: Window attention
-        self.stage3 = self._make_swin_stage(embed_dims[2], depths[2], num_heads)
+        total_transformer_blocks = int(depths[2] + depths[3])
+        if total_transformer_blocks > 0 and drop_path_rate > 0.0:
+            dpr = torch.linspace(0.0, float(drop_path_rate), total_transformer_blocks).tolist()
+        else:
+            dpr = [0.0] * max(total_transformer_blocks, 0)
+
+        self.stage3 = self._make_swin_stage(embed_dims[2], depths[2], num_heads, dpr[: depths[2]])
         self.proj34 = nn.Linear(embed_dims[2], embed_dims[3]) if embed_dims[2] != embed_dims[3] else nn.Identity()
-        self.stage4 = self._make_swin_stage(embed_dims[3], depths[3], num_heads)
+        self.stage4 = self._make_swin_stage(embed_dims[3], depths[3], num_heads, dpr[depths[2] :])
 
         self.norm = nn.LayerNorm(embed_dims[-1])
         self.head = nn.Linear(embed_dims[-1], num_classes)
@@ -175,8 +213,19 @@ class HybridCoAtMini(nn.Module):
             layers.append(DepthwiseConvBlock(out_ch))
         return nn.Sequential(*layers)
 
-    def _make_swin_stage(self, dim: int, depth: int, num_heads: int):
-        blocks = nn.ModuleList([SwinBlock(dim, num_heads, self.window_size) for _ in range(depth)])
+    def _make_swin_stage(
+        self,
+        dim: int,
+        depth: int,
+        num_heads: int,
+        drop_path_probs: Optional[list] = None,
+    ):
+        if drop_path_probs is None:
+            drop_path_probs = [0.0] * depth
+        assert len(drop_path_probs) == depth, "drop_path_probs must match depth"
+        blocks = nn.ModuleList(
+            [SwinBlock(dim, num_heads, self.window_size, drop_path_prob=drop_path_probs[i]) for i in range(depth)]
+        )
         return blocks
 
     def _init_weights(self):
@@ -272,5 +321,30 @@ def build_hybrid_coat_small(
         window_size=7,
         num_heads=8,
         drop_rate=drop_rate,
+        **kwargs
+    )
+
+
+def build_hybrid_coat_deep(
+    num_classes: int = 5,
+    drop_rate: float = 0.0,
+    drop_path_rate: float = 0.1,
+    **kwargs
+) -> HybridCoAtMini:
+    """Build hybrid_coat_deep model (random init, no pretrained).
+
+    Same width as hybrid_coatmini, but deeper: depths=(3,3,6,3) with stochastic depth
+    applied to transformer stages only.
+
+    Config: embed_dims=(64,128,256,512), depths=(3,3,6,3) → ~12–14M params (approx).
+    """
+    return HybridCoAtMini(
+        num_classes=num_classes,
+        embed_dims=(64, 128, 256, 512),
+        depths=(3, 3, 6, 3),
+        window_size=7,
+        num_heads=8,
+        drop_rate=drop_rate,
+        drop_path_rate=drop_path_rate,
         **kwargs
     )
