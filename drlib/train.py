@@ -46,6 +46,8 @@ class DRModule(L.LightningModule):
         lr_scheduler='cosine',
         weight_decay=1e-4,
         warmup_epochs=0,
+        warmup_start_lr=1e-6,
+        drop_path_rate=0.0,
         focal_gamma=2.0,
         weight_mode='sqrt_inverse',
         **loss_kwargs
@@ -64,7 +66,9 @@ class DRModule(L.LightningModule):
             unfreeze_epoch: Epoch to unfreeze backbone (None = never freeze)
             lr_scheduler: 'cosine', 'step', 'plateau', or None
             weight_decay: Weight decay for optimizer
-            warmup_epochs: Number of warmup epochs
+            warmup_epochs: Number of warmup epochs (linear warmup before main scheduler)
+            warmup_start_lr: LR at epoch 0 during warmup (linearly increases to lr)
+            drop_path_rate: Stochastic depth rate (passed to model factory when supported)
             focal_gamma: Gamma parameter for focal variants (default 2.0)
             weight_mode: Weight-building mode for weighted variants —
                          'sqrt_inverse' (default) or 'inverse'
@@ -76,7 +80,12 @@ class DRModule(L.LightningModule):
         # Custom hybrid models are trained from scratch; timm models use pretrained weights.
         from drlib.models import _SCRATCH_MODELS
         pretrained = model_name not in _SCRATCH_MODELS
-        self.model = create_model(model_name, num_classes=5, pretrained=pretrained)
+        self.model = create_model(
+            model_name,
+            num_classes=5,
+            pretrained=pretrained,
+            drop_path_rate=drop_path_rate,
+        )
 
         # Freeze backbone if requested
         if freeze_backbone:
@@ -140,7 +149,15 @@ class DRModule(L.LightningModule):
         return loss
     
     def on_train_epoch_start(self):
-        """Unfreeze backbone at specified epoch."""
+        """Log LR and optionally unfreeze backbone at specified epoch."""
+        # Log current LR (visible in progress bar + CSV logs)
+        try:
+            opt = self.trainer.optimizers[0]
+            lr = float(opt.param_groups[0].get("lr", self.hparams.lr))
+            self.log("lr", lr, prog_bar=True, on_step=False, on_epoch=True)
+        except Exception:
+            pass
+
         if self.unfreeze_epoch is not None and self.current_epoch == self.unfreeze_epoch:
             print(f"\nUnfreezing backbone at epoch {self.current_epoch}")
             self._unfreeze_backbone()
@@ -222,11 +239,37 @@ class DRModule(L.LightningModule):
             return optimizer
         
         if self.hparams.lr_scheduler == 'cosine':
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=self.trainer.max_epochs,
-                eta_min=self.hparams.lr * 0.01
-            )
+            warmup_epochs = int(getattr(self.hparams, "warmup_epochs", 0) or 0)
+            warmup_start_lr = float(getattr(self.hparams, "warmup_start_lr", 1e-6))
+
+            # Backward-compatible: warmup_epochs=0 behaves exactly like the old cosine-only scheduler.
+            if warmup_epochs <= 0:
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    T_max=self.trainer.max_epochs,
+                    eta_min=self.hparams.lr * 0.01
+                )
+            else:
+                # Linear warmup from warmup_start_lr -> lr (over warmup_epochs epochs),
+                # then cosine decay for the remaining epochs.
+                start_factor = warmup_start_lr / max(float(self.hparams.lr), 1e-12)
+                warmup = torch.optim.lr_scheduler.LinearLR(
+                    optimizer,
+                    start_factor=start_factor,
+                    end_factor=1.0,
+                    total_iters=warmup_epochs,
+                )
+                t_max = max(int(self.trainer.max_epochs) - warmup_epochs, 1)
+                cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    T_max=t_max,
+                    eta_min=self.hparams.lr * 0.01
+                )
+                scheduler = torch.optim.lr_scheduler.SequentialLR(
+                    optimizer,
+                    schedulers=[warmup, cosine],
+                    milestones=[warmup_epochs],
+                )
         elif self.hparams.lr_scheduler == 'step':
             scheduler = torch.optim.lr_scheduler.StepLR(
                 optimizer,
@@ -255,7 +298,10 @@ class DRModule(L.LightningModule):
         else:
             return {
                 'optimizer': optimizer,
-                'lr_scheduler': scheduler
+                'lr_scheduler': {
+                    'scheduler': scheduler,
+                    'interval': 'epoch',
+                }
             }
 
 
@@ -322,7 +368,9 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     ap.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
     ap.add_argument("--lr_scheduler", choices=['cosine', 'step', 'plateau', 'none'], default='cosine', help="LR scheduler")
-    ap.add_argument("--warmup_epochs", type=int, default=0, help="Warmup epochs")
+    ap.add_argument("--warmup_epochs", type=int, default=0, help="Warmup epochs (linear warmup before main scheduler)")
+    ap.add_argument("--warmup_start_lr", type=float, default=1e-6, help="Warmup start LR at epoch 0")
+    ap.add_argument("--drop_path_rate", type=float, default=0.0, help="Stochastic depth rate (when supported by the model)")
     
     # Loss arguments
     ap.add_argument(
@@ -347,6 +395,7 @@ def main():
     ap.add_argument("--seed", type=int, default=42, help="Random seed")
     ap.add_argument("--precision", default="32-true", choices=["32-true", "16-mixed", "bf16-mixed"],
                     help="Training precision (16-mixed = AMP)")
+    ap.add_argument("--default_root_dir", default=None, help="Root directory for logs and checkpoints (optional)")
     
     args = ap.parse_args()
     
@@ -383,6 +432,8 @@ def main():
         lr_scheduler=args.lr_scheduler if args.lr_scheduler != 'none' else None,
         weight_decay=args.weight_decay,
         warmup_epochs=args.warmup_epochs,
+        warmup_start_lr=args.warmup_start_lr,
+        drop_path_rate=args.drop_path_rate,
         focal_gamma=args.focal_gamma,
         weight_mode=args.weight_mode,
     )
@@ -406,6 +457,9 @@ def main():
     ]
     
     # Trainer
+    trainer_kwargs = {}
+    if args.default_root_dir:
+        trainer_kwargs["default_root_dir"] = args.default_root_dir
     trainer = L.Trainer(
         max_epochs=args.epochs,
         accelerator="auto",
@@ -414,7 +468,8 @@ def main():
         log_every_n_steps=10,
         enable_progress_bar=True,
         callbacks=callbacks,
-        deterministic=False
+        deterministic=False,
+        **trainer_kwargs
     )
     
     trainer.fit(model, dl_tr, dl_va)
