@@ -187,10 +187,12 @@ def cam_to_heatmap_rgb(cam01: np.ndarray, out_h: int, out_w: int) -> np.ndarray:
 
 
 def overlay_heatmap(image_rgb: np.ndarray, heatmap_rgb: np.ndarray, alpha: float = 0.5) -> np.ndarray:
-    # Fixed blending weights for clearer overlays:
-    # 60% original image + 40% heatmap (requested).
     _ = alpha  # keep signature/backward compatibility; weights are fixed intentionally
-    return cv2.addWeighted(image_rgb, 0.6, heatmap_rgb, 0.4, 0.0)
+    # Ensure RGB for both inputs before blending.
+    original_rgb = image_rgb
+    heatmap_rgb = heatmap_rgb
+    overlay = (0.55 * original_rgb.astype(np.float32) + 0.45 * heatmap_rgb.astype(np.float32)).clip(0, 255)
+    return overlay.astype(np.uint8)
 
 
 @torch.no_grad()
