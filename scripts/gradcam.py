@@ -179,20 +179,17 @@ def compute_gradcam(
 
 
 def cam_to_heatmap_rgb(cam01: np.ndarray, out_h: int, out_w: int) -> np.ndarray:
-    cam01 = cv2.GaussianBlur(cam01, ksize=(0, 0), sigmaX=8)
-    cam_resized = cv2.resize(cam01, (out_w, out_h), interpolation=cv2.INTER_CUBIC)
+    cam_resized = cv2.resize(cam01, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
     heatmap = cv2.applyColorMap((cam_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
     return heatmap
 
 
 def overlay_heatmap(image_rgb: np.ndarray, heatmap_rgb: np.ndarray, alpha: float = 0.5) -> np.ndarray:
-    _ = alpha  # keep signature/backward compatibility; weights are fixed intentionally
-    # Ensure RGB for both inputs before blending.
-    original_rgb = image_rgb
-    heatmap_rgb = heatmap_rgb
-    overlay = (0.55 * original_rgb.astype(np.float32) + 0.45 * heatmap_rgb.astype(np.float32)).clip(0, 255)
-    return overlay.astype(np.uint8)
+    img = image_rgb.astype(np.float32)
+    hm = heatmap_rgb.astype(np.float32)
+    out = (alpha * hm + (1.0 - alpha) * img).clip(0, 255).astype(np.uint8)
+    return out
 
 
 @torch.no_grad()
