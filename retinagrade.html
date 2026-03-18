@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetinaGrade — DR Severity Classification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & VARIABLES
+   ============================================================ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:        #0a0c0f;
+  --bg-2:      #0d1016;
+  --bg-3:      #111520;
+  --bg-4:      #161d2a;
+  --teal:      #00d4c8;
+  --teal-dim:  rgba(0,212,200,0.12);
+  --teal-glow: rgba(0,212,200,0.25);
+  --amber:     #f5a623;
+  --amber-dim: rgba(245,166,35,0.10);
+  --text:      #cdd5e0;
+  --text-dim:  #7b8898;
+  --text-muted:#3e4c60;
+  --border:    #1a2233;
+  --border-t:  rgba(0,212,200,0.22);
+  --mono:      'DM Mono', monospace;
+  --serif:     'Instrument Serif', serif;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--mono); overflow-x: hidden; line-height: 1.6; }
+
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); }
+::-webkit-scrollbar-thumb:hover { background: var(--teal); }
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 52px;
+  background: linear-gradient(to bottom, rgba(10,12,15,0.96) 60%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.logo { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+.logo-text { font-family: var(--serif); font-size: 19px; color: var(--text); letter-spacing: 0.015em; }
+
+nav { display: flex; gap: 36px; }
+nav a {
+  font-size: 10.5px; color: var(--text-dim); text-decoration: none;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  transition: color 0.2s;
+}
+nav a:hover { color: var(--teal); }
+
+/* ============================================================
+   HERO — SECTION 1
+   ============================================================ */
+#hero {
+  min-height: 100vh; position: relative; overflow: hidden;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 110px 52px 72px;
+  gap: 0;
+}
+
+/* Subtle background grid */
+#hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,212,200,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,200,0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+/* Vignette over grid */
+#hero::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 35%, var(--bg) 100%);
+}
+
+.hero-inner {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 30px;
+}
+
+/* Stagger-in animations */
+.fade-in-up { opacity: 0; transform: translateY(20px); }
+.fi-1 { animation: fadeUp 0.65s cubic-bezier(.22,.68,0,1.2) 0.08s forwards; }
+.fi-2 { animation: fadeUp 0.65s cubic-bezier(.22,.68,0,1.2) 0.16s forwards; }
+.fi-3 { animation: fadeUp 0.65s cubic-bezier(.22,.68,0,1.2) 0.24s forwards; }
+.fi-4 { animation: fadeUp 0.65s cubic-bezier(.22,.68,0,1.2) 0.32s forwards; }
+.fi-5 { animation: fadeUp 0.65s cubic-bezier(.22,.68,0,1.2) 0.40s forwards; }
+
+@keyframes fadeUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-eyebrow {
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--teal); border: 1px solid var(--border-t);
+  padding: 5px 14px;
+}
+
+.hero-title {
+  font-family: var(--serif); font-size: clamp(30px, 3.6vw, 50px);
+  color: var(--text); text-align: center; line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+
+.hero-sub {
+  font-size: 12px; color: var(--text-dim); text-align: center;
+  max-width: 460px; line-height: 1.75;
+}
+
+/* ---- Upload Zone ---- */
+.upload-wrap { position: relative; }
+
+.upload-zone {
+  position: relative; width: 300px; height: 300px;
+  border-radius: 50%; cursor: pointer;
+  background: var(--bg-2);
+  border: 1.5px dashed var(--teal);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  overflow: hidden;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.upload-zone:hover {
+  border-color: var(--teal);
+  box-shadow: 0 0 28px rgba(0,212,200,0.08), inset 0 0 28px rgba(0,212,200,0.04);
+}
+.upload-zone.drag-over {
+  border-style: solid;
+  box-shadow: 0 0 40px rgba(0,212,200,0.18), inset 0 0 40px rgba(0,212,200,0.06);
+}
+
+/* Grid overlay */
+.uz-grid {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,212,200,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,200,0.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Crosshair lines */
+.uz-cross {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.uz-cross::before {
+  content: ''; position: absolute;
+  left: 50%; top: 18%; bottom: 18%;
+  width: 1px; background: rgba(0,212,200,0.12);
+  transform: translateX(-50%);
+}
+.uz-cross::after {
+  content: ''; position: absolute;
+  top: 50%; left: 18%; right: 18%;
+  height: 1px; background: rgba(0,212,200,0.12);
+  transform: translateY(-50%);
+}
+
+/* Reticle circles */
+.uz-reticle {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.uz-reticle::before {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 108px; height: 108px; border-radius: 50%;
+  border: 1px solid rgba(0,212,200,0.09);
+}
+.uz-reticle::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 192px; height: 192px; border-radius: 50%;
+  border: 1px solid rgba(0,212,200,0.06);
+}
+
+/* Pulse rings */
+.pulse-ring {
+  position: absolute; inset: -6px; border-radius: 50%;
+  border: 1.5px solid var(--teal);
+  animation: pulseOut 2.5s ease-out infinite;
+  pointer-events: none;
+}
+.pulse-ring:nth-of-type(2) { animation-delay: 1s; }
+
+@keyframes pulseOut {
+  0%   { transform: scale(1);    opacity: 0.45; }
+  100% { transform: scale(1.16); opacity: 0; }
+}
+.upload-zone.has-image .pulse-ring { animation: none; opacity: 0; }
+
+/* Upload content */
+.uz-icon   { position: relative; z-index: 1; color: var(--teal); opacity: 0.55; transition: opacity 0.3s; }
+.uz-text   { position: relative; z-index: 1; font-size: 12px; letter-spacing: 0.08em; color: var(--text-dim); transition: opacity 0.3s; }
+.uz-hint   { position: relative; z-index: 1; font-size: 10px; color: var(--text-muted); transition: opacity 0.3s; }
+
+/* Preview image */
+.uz-preview {
+  position: absolute; inset: 0; border-radius: 50%;
+  object-fit: cover; opacity: 0; transition: opacity 0.4s;
+}
+.upload-zone.has-image .uz-preview { opacity: 1; }
+.upload-zone.has-image .uz-icon,
+.upload-zone.has-image .uz-text,
+.upload-zone.has-image .uz-hint,
+.upload-zone.has-image .uz-grid,
+.upload-zone.has-image .uz-cross,
+.upload-zone.has-image .uz-reticle { opacity: 0; pointer-events: none; }
+
+/* Scan line */
+.scan-line {
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--teal) 30%, rgba(255,255,255,0.8) 50%, var(--teal) 70%, transparent 100%);
+  top: -4px; opacity: 0; z-index: 20; pointer-events: none;
+  box-shadow: 0 0 12px var(--teal), 0 0 4px rgba(255,255,255,0.5);
+}
+.upload-zone.scanning .scan-line {
+  animation: scanDown 1.5s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  opacity: 1;
+}
+@keyframes scanDown {
+  0%   { top: 0%; opacity: 0.9; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Upload error */
+.upload-error {
+  position: absolute; bottom: -32px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px; color: var(--amber); letter-spacing: 0.07em;
+  white-space: nowrap; opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.upload-error.show { opacity: 1; }
+
+/* Stat pills */
+.stat-pills { display: flex; gap: 10px; }
+.stat-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  padding: 6px 14px; font-size: 10.5px; color: var(--text-dim);
+  letter-spacing: 0.05em;
+}
+.pill-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--teal); box-shadow: 0 0 5px var(--teal);
+  flex-shrink: 0;
+}
+
+/* Analyze button */
+.analyze-wrap {
+  opacity: 0; transform: translateY(12px);
+  transition: opacity 0.4s, transform 0.4s;
+  pointer-events: none;
+}
+.analyze-wrap.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+.analyze-btn {
+  position: relative; overflow: hidden;
+  background: transparent; border: 1.5px solid var(--teal);
+  color: var(--teal); font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  padding: 12px 52px; cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.analyze-btn::after {
+  content: ''; position: absolute;
+  left: 0; top: -100%; right: 0; height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), var(--teal), rgba(255,255,255,0.7), transparent);
+  opacity: 0;
+}
+.analyze-btn:hover::after {
+  opacity: 1;
+  animation: btnScan 0.9s linear infinite;
+}
+.analyze-btn:hover {
+  background: rgba(0,212,200,0.07);
+  box-shadow: 0 0 24px rgba(0,212,200,0.14);
+}
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@keyframes btnScan {
+  0%   { top: -2px; }
+  100% { top: calc(100% + 2px); }
+}
+
+#file-input { display: none; }
+
+/* ============================================================
+   RESULTS — SECTION 2
+   ============================================================ */
+#results {
+  display: none; padding: 80px 52px;
+  border-top: 1px solid var(--border);
+}
+#results.visible { display: block; }
+
+/* Section heading */
+.sec-head {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 44px;
+}
+.sec-tag {
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--teal); border: 1px solid var(--border-t);
+  padding: 4px 10px; flex-shrink: 0;
+}
+.sec-title { font-family: var(--serif); font-size: 26px; color: var(--text); }
+.sec-rule { flex: 1; height: 1px; background: var(--border); }
+
+/* Results three-panel grid */
+.res-grid {
+  display: grid; grid-template-columns: 40% 35% 25%;
+  gap: 2px; background: var(--border);
+}
+.res-panel {
+  background: var(--bg-2); padding: 28px;
+  opacity: 0; transform: translateY(28px);
+  transition: opacity 0.5s cubic-bezier(.22,.68,0,1.2), transform 0.5s cubic-bezier(.22,.68,0,1.2);
+}
+.res-panel.on { opacity: 1; transform: none; }
+.res-panel:nth-child(2) { transition-delay: 0.10s; }
+.res-panel:nth-child(3) { transition-delay: 0.20s; }
+
+.panel-lbl {
+  font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 18px;
+}
+
+/* ---- Left panel: image frame ---- */
+.img-frame {
+  position: relative; aspect-ratio: 1;
+  border: 1px solid var(--border-t); overflow: hidden;
+  margin-bottom: 18px;
+}
+.img-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Corner brackets */
+.corner {
+  position: absolute; width: 11px; height: 11px;
+}
+.corner.tl { top: -1px; left: -1px;  border-top: 2px solid var(--teal); border-left: 2px solid var(--teal); }
+.corner.tr { top: -1px; right: -1px; border-top: 2px solid var(--teal); border-right: 2px solid var(--teal); }
+.corner.bl { bottom: -1px; left: -1px;  border-bottom: 2px solid var(--teal); border-left: 2px solid var(--teal); }
+.corner.br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--teal); border-right: 2px solid var(--teal); }
+
+/* Severity badge strip */
+.sev-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+.sev-badge {
+  font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 4px 9px; border: 1px solid var(--border);
+  color: var(--text-muted); background: var(--bg-3);
+  transition: all 0.35s;
+}
+.sev-badge.predicted {
+  border-color: var(--teal); color: var(--teal); background: var(--teal-dim);
+  box-shadow: 0 0 10px rgba(0,212,200,0.15);
+}
+.sev-badge.adjacent {
+  border-color: rgba(245,166,35,0.28); color: rgba(245,166,35,0.65); background: var(--amber-dim);
+}
+
+/* ---- Center panel: confidence bars ---- */
+.conf-bars { display: flex; flex-direction: column; gap: 14px; }
+.conf-row  { display: flex; align-items: center; gap: 10px; }
+.conf-lbl  { font-size: 10px; color: var(--text-dim); width: 90px; flex-shrink: 0; letter-spacing: 0.03em; }
+.conf-track { flex: 1; height: 5px; background: var(--bg-4); overflow: hidden; }
+.conf-fill {
+  height: 100%; width: 0%;
+  background: var(--text-muted);
+  transition: width 0.85s cubic-bezier(.4,0,.2,1);
+}
+.conf-fill.predicted { background: var(--teal); box-shadow: 0 0 8px rgba(0,212,200,0.5); }
+.conf-fill.adjacent  { background: rgba(245,166,35,0.45); }
+.conf-val  { font-size: 10px; color: var(--text-dim); width: 38px; text-align: right; flex-shrink: 0; }
+.conf-val.predicted { color: var(--teal); }
+.conf-val.adjacent  { color: rgba(245,166,35,0.7); }
+
+/* ---- Right panel: Grad-CAM ---- */
+.gcam-frame {
+  position: relative; aspect-ratio: 1;
+  overflow: hidden; border: 1px solid var(--border);
+  margin-bottom: 11px;
+}
+.gcam-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: saturate(0.3) brightness(0.6);
+}
+.gcam-overlay {
+  position: absolute; inset: 0;
+  background: radial-gradient(
+    ellipse 55% 52% at 62% 42%,
+    rgba(255,20,0,0.72)  0%,
+    rgba(255,130,0,0.55) 18%,
+    rgba(255,220,0,0.38) 34%,
+    rgba(80,200,40,0.22) 50%,
+    rgba(0,120,255,0.10) 66%,
+    transparent          82%
+  );
+  mix-blend-mode: screen;
+}
+.gcam-lbl {
+  font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.10em;
+  text-transform: uppercase; margin-bottom: 9px;
+}
+.gcam-legend { display: flex; height: 7px; margin-bottom: 5px; }
+.gcam-legend span { flex: 1; }
+.gcam-leg-labels {
+  display: flex; justify-content: space-between;
+  font-size: 8.5px; color: var(--text-muted); letter-spacing: 0.05em;
+}
+
+/* ---- Interpretation card ---- */
+.interp-card {
+  margin-top: 2px; background: var(--bg-2);
+  border-left: 3px solid var(--teal);
+  padding: 24px 30px;
+  display: flex; align-items: flex-start; gap: 28px;
+  opacity: 0; transform: translateY(18px);
+  transition: opacity 0.5s 0.38s cubic-bezier(.22,.68,0,1.2),
+              transform 0.5s 0.38s cubic-bezier(.22,.68,0,1.2);
+}
+.interp-card.on { opacity: 1; transform: none; }
+
+.interp-class {
+  font-family: var(--serif); font-size: 34px; color: var(--text);
+  white-space: nowrap; line-height: 1.05; min-width: 160px;
+}
+.interp-rule { width: 1px; background: var(--border); align-self: stretch; flex-shrink: 0; }
+.interp-body { flex: 1; }
+.interp-stage {
+  font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 7px;
+}
+.interp-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.75; margin-bottom: 10px; }
+.interp-warn {
+  display: none; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--amber);
+  border: 1px solid rgba(245,166,35,0.28); background: var(--amber-dim);
+  padding: 5px 12px; letter-spacing: 0.05em;
+}
+.interp-warn.show { display: inline-flex; }
+
+/* ============================================================
+   MODEL — SECTION 3
+   ============================================================ */
+#model {
+  padding: 80px 52px;
+  border-top: 1px solid var(--border);
+}
+.model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 52px; align-items: start; }
+
+/* Architecture */
+.arch-lbl {
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--teal); margin-bottom: 20px;
+}
+.arch-svg-wrap { position: relative; overflow: hidden; }
+
+.arch-params {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; margin-top: 14px;
+}
+.arch-stat {
+  background: var(--bg-3); border: 1px solid var(--border); padding: 12px;
+}
+.arch-stat-lbl {
+  font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 4px;
+}
+.arch-stat-val { font-size: 15px; color: var(--teal); font-family: var(--mono); }
+.arch-stat-val.dim { color: var(--text-dim); }
+
+/* Results table */
+.tbl-lbl {
+  font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--teal); margin-bottom: 14px;
+}
+.exp-table {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--mono); font-size: 11px;
+}
+.exp-table thead th {
+  text-align: left; padding: 8px 12px;
+  color: var(--text-muted); font-size: 9px; letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 400;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-3);
+}
+.exp-table tbody tr {
+  border-bottom: 1px solid rgba(26,34,51,0.6);
+  transition: background 0.18s;
+  position: relative;
+}
+.exp-table tbody tr:nth-child(even) { background: rgba(13,16,22,0.55); }
+.exp-table tbody tr:hover { background: rgba(0,212,200,0.03); }
+.exp-table tbody tr:hover td:first-child::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--teal);
+}
+.exp-table tbody td {
+  padding: 9px 12px; color: var(--text-dim); position: relative;
+}
+.exp-table tbody td:first-child { color: var(--text); }
+
+/* Best row */
+.row-best { box-shadow: inset 2px 0 0 var(--teal) !important; }
+.row-best td { color: var(--text) !important; }
+.row-best td:nth-child(3), .row-best td:nth-child(4) { color: var(--teal) !important; }
+
+/* Pretrained row */
+.row-pre td { color: var(--text-muted) !important; opacity: 0.72; }
+.row-pre td:first-child { color: var(--text-dim) !important; }
+
+.tag-best     { font-size: 9px; color: var(--teal); margin-left: 3px; }
+.tag-pre {
+  font-size: 8.5px; color: var(--amber); background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,0.2);
+  padding: 1px 5px; letter-spacing: 0.04em;
+  vertical-align: middle; margin-left: 5px;
+}
+
+/* CV summary */
+.cv-card {
+  margin-top: 16px; display: flex; align-items: center; gap: 22px;
+  padding: 14px 16px;
+  background: var(--bg-3); border: 1px solid var(--border);
+}
+.cv-text { font-size: 11px; color: var(--teal); letter-spacing: 0.05em; flex-shrink: 0; }
+.cv-spark {
+  flex: 1; display: flex; align-items: flex-end; gap: 4px; height: 26px;
+}
+.spark-bar {
+  flex: 1; background: rgba(0,212,200,0.25); border-top: 1px solid var(--teal);
+  transition: background 0.2s;
+}
+.spark-bar:hover { background: rgba(0,212,200,0.5); }
+
+/* Training config tile */
+.train-cfg {
+  margin-top: 14px; padding: 16px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-left: 2px solid rgba(0,212,200,0.2);
+}
+.train-cfg-lbl {
+  font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 12px;
+}
+.train-cfg-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 11px;
+}
+.train-cfg-grid span { color: var(--text-muted); }
+.train-cfg-grid div { color: var(--text-dim); }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer {
+  padding: 22px 52px; border-top: 1px solid var(--border);
+  text-align: center; font-size: 10.5px; color: var(--text-muted);
+  letter-spacing: 0.08em; line-height: 1;
+}
+
+/* ============================================================
+   ARCHITECTURE SVG ANIMATION
+   ============================================================ */
+@keyframes dotTravel {
+  0%   { opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ======================================================
+     HEADER
+     ====================================================== -->
+<header>
+  <a href="#hero" class="logo">
+    <!-- Stylized retinal cross-section logo mark -->
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="17" cy="17" r="15.5" stroke="#00d4c8" stroke-width="0.9" opacity="0.55"/>
+      <circle cx="17" cy="17" r="9.5"  stroke="#00d4c8" stroke-width="0.7" opacity="0.35"/>
+      <circle cx="17" cy="17" r="3.5"  fill="#00d4c8" opacity="0.85"/>
+      <line x1="17" y1="1"  x2="17" y2="7.5"  stroke="#00d4c8" stroke-width="1.4" opacity="0.7"/>
+      <line x1="17" y1="26.5" x2="17" y2="33"  stroke="#00d4c8" stroke-width="1.4" opacity="0.7"/>
+      <line x1="1"  y1="17" x2="7.5" y2="17"  stroke="#00d4c8" stroke-width="1.4" opacity="0.7"/>
+      <line x1="26.5" y1="17" x2="33" y2="17" stroke="#00d4c8" stroke-width="1.4" opacity="0.7"/>
+      <line x1="4.9" y1="4.9"  x2="9.1" y2="9.1"  stroke="#00d4c8" stroke-width="0.8" opacity="0.35"/>
+      <line x1="24.9" y1="24.9" x2="29.1" y2="29.1" stroke="#00d4c8" stroke-width="0.8" opacity="0.35"/>
+      <line x1="29.1" y1="4.9" x2="24.9" y2="9.1"  stroke="#00d4c8" stroke-width="0.8" opacity="0.35"/>
+      <line x1="9.1"  y1="24.9" x2="4.9" y2="29.1" stroke="#00d4c8" stroke-width="0.8" opacity="0.35"/>
+    </svg>
+    <span class="logo-text">RetinaGrade</span>
+  </a>
+  <nav>
+    <a href="#model">Model</a>
+    <a href="#model">About</a>
+    <a href="#">GitHub</a>
+  </nav>
+</header>
+
+<!-- ======================================================
+     SECTION 1 — HERO / UPLOAD
+     ====================================================== -->
+<section id="hero">
+  <div class="hero-inner">
+
+    <span class="hero-eyebrow fade-in-up fi-1">Fundus Image Analysis · Deep Learning</span>
+
+    <h1 class="hero-title fade-in-up fi-2">
+      Diabetic Retinopathy<br>Severity Classification
+    </h1>
+
+    <p class="hero-sub fade-in-up fi-3">
+      Powered by a custom hybrid CNN+Transformer architecture trained from scratch
+      on the APTOS 2019 dataset. Not intended for clinical use.
+    </p>
+
+    <!-- Upload Zone -->
+    <div class="upload-wrap fade-in-up fi-4">
+      <div class="upload-zone" id="uploadZone">
+        <!-- Pulse rings -->
+        <div class="pulse-ring"></div>
+        <div class="pulse-ring"></div>
+        <!-- Overlays -->
+        <div class="uz-grid"></div>
+        <div class="uz-cross"></div>
+        <div class="uz-reticle"></div>
+        <!-- Icon -->
+        <svg class="uz-icon" width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="19" cy="19" r="12.5" stroke-dasharray="3.5 2.8" opacity="0.6"/>
+          <path d="M19 24.5V13.5M13.5 17.5l5.5-5 5.5 5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="uz-text">Drop fundus image</span>
+        <span class="uz-hint">or click to select · JPG, PNG</span>
+        <!-- Preview -->
+        <img class="uz-preview" id="uploadPreview" src="" alt="Uploaded fundus image">
+        <!-- Scan line -->
+        <div class="scan-line" id="scanLine"></div>
+      </div>
+      <div class="upload-error" id="uploadError">⚠&nbsp; No image loaded</div>
+    </div>
+
+    <!-- Stat pills -->
+    <div class="stat-pills fade-in-up fi-5">
+      <div class="stat-pill"><div class="pill-dot"></div><span>Model: hybrid_coatmini</span></div>
+      <div class="stat-pill"><div class="pill-dot"></div><span>Params: 8.5M — trained from scratch</span></div>
+    </div>
+
+    <!-- Analyze button (shown after upload) -->
+    <div class="analyze-wrap" id="analyzeWrap">
+      <button class="analyze-btn" id="analyzeBtn">Analyze Image</button>
+    </div>
+
+    <input type="file" id="file-input" accept="image/*">
+  </div>
+</section>
+
+<!-- ======================================================
+     SECTION 2 — RESULTS
+     ====================================================== -->
+<section id="results">
+  <div class="sec-head">
+    <span class="sec-tag">Analysis Output</span>
+    <h2 class="sec-title">Classification Results</h2>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="res-grid">
+    <!-- LEFT: Image + badges -->
+    <div class="res-panel" id="rPanel1">
+      <div class="panel-lbl">// fundus_input.rgb</div>
+      <div class="img-frame">
+        <img id="resultImg" src="" alt="Fundus image">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+      </div>
+      <div class="sev-badges" id="sevBadges">
+        <span class="sev-badge" data-lvl="0">No DR</span>
+        <span class="sev-badge" data-lvl="1">Mild</span>
+        <span class="sev-badge" data-lvl="2">Moderate</span>
+        <span class="sev-badge" data-lvl="3">Severe</span>
+        <span class="sev-badge" data-lvl="4">Prolif.</span>
+      </div>
+    </div>
+
+    <!-- CENTER: Confidence bars -->
+    <div class="res-panel" id="rPanel2">
+      <div class="panel-lbl">// softmax_confidence.scores</div>
+      <div class="conf-bars">
+        <div class="conf-row">
+          <span class="conf-lbl">No DR</span>
+          <div class="conf-track"><div class="conf-fill" data-pct="8.2"  data-lvl="0"></div></div>
+          <span class="conf-val"  data-lvl="0">8.2%</span>
+        </div>
+        <div class="conf-row">
+          <span class="conf-lbl">Mild DR</span>
+          <div class="conf-track"><div class="conf-fill" data-pct="53.9" data-lvl="1"></div></div>
+          <span class="conf-val"  data-lvl="1">53.9%</span>
+        </div>
+        <div class="conf-row">
+          <span class="conf-lbl">Moderate DR</span>
+          <div class="conf-track"><div class="conf-fill" data-pct="22.1" data-lvl="2"></div></div>
+          <span class="conf-val"  data-lvl="2">22.1%</span>
+        </div>
+        <div class="conf-row">
+          <span class="conf-lbl">Severe DR</span>
+          <div class="conf-track"><div class="conf-fill" data-pct="11.4" data-lvl="3"></div></div>
+          <span class="conf-val"  data-lvl="3">11.4%</span>
+        </div>
+        <div class="conf-row">
+          <span class="conf-lbl">Proliferative</span>
+          <div class="conf-track"><div class="conf-fill" data-pct="4.4"  data-lvl="4"></div></div>
+          <span class="conf-val"  data-lvl="4">4.4%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Grad-CAM -->
+    <div class="res-panel" id="rPanel3">
+      <div class="panel-lbl">// gradcam.activation_map</div>
+      <div class="gcam-frame">
+        <img class="gcam-img" id="gradcamImg" src="" alt="Grad-CAM">
+        <div class="gcam-overlay"></div>
+      </div>
+      <div class="gcam-lbl">Grad-CAM Activation</div>
+      <div class="gcam-legend">
+        <span style="background:#0000ee;"></span>
+        <span style="background:#0050ff;"></span>
+        <span style="background:#00b0ff;"></span>
+        <span style="background:#00ffb0;"></span>
+        <span style="background:#80ff00;"></span>
+        <span style="background:#ffee00;"></span>
+        <span style="background:#ff8800;"></span>
+        <span style="background:#ff2200;"></span>
+        <span style="background:#cc0000;"></span>
+      </div>
+      <div class="gcam-leg-labels"><span>low</span><span>activation</span><span>high</span></div>
+    </div>
+  </div>
+
+  <!-- Interpretation card -->
+  <div class="interp-card" id="interpCard">
+    <div class="interp-class" id="interpClass">Mild DR</div>
+    <div class="interp-rule"></div>
+    <div class="interp-body">
+      <div class="interp-stage">ETDRS Stage 2 · Predicted Severity Level</div>
+      <p class="interp-desc" id="interpDesc">
+        Microaneurysms present with possible small retinal hemorrhages. Early diabetic changes
+        detected in the retinal vasculature. Close monitoring and glycemic control are recommended.
+      </p>
+      <div class="interp-warn" id="interpWarn">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M6 1L11 10H1L6 1z"/>
+          <line x1="6" y1="5" x2="6" y2="7.5"/>
+          <circle cx="6" cy="9" r="0.5" fill="currentColor" stroke="none"/>
+        </svg>
+        Consult ophthalmologist — elevated severity detected
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================================================
+     SECTION 3 — MODEL & METHODOLOGY
+     ====================================================== -->
+<section id="model">
+  <div class="sec-head">
+    <span class="sec-tag">Architecture</span>
+    <h2 class="sec-title">Model &amp; Methodology</h2>
+    <div class="sec-rule"></div>
+  </div>
+
+  <div class="model-grid">
+
+    <!-- LEFT: Architecture SVG diagram -->
+    <div>
+      <div class="arch-lbl">// pipeline_architecture.hybrid_coatmini</div>
+      <div class="arch-svg-wrap">
+        <svg id="archSvg" viewBox="0 0 580 300" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">
+          <defs>
+            <pattern id="ag" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M20 0L0 0 0 20" fill="none" stroke="rgba(255,255,255,0.025)" stroke-width="0.5"/>
+            </pattern>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect width="580" height="300" fill="url(#ag)"/>
+
+          <!-- Labels row -->
+          <text x="38"  y="26" fill="rgba(80,96,120,0.8)"  font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">INPUT</text>
+          <text x="138" y="26" fill="#00d4c8"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">CNN STAGE 1</text>
+          <text x="248" y="26" fill="#00d4c8"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">CNN STAGE 2</text>
+          <text x="358" y="26" fill="#f5a623"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">SWIN ATT. 3</text>
+          <text x="458" y="26" fill="#f5a623"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">SWIN ATT. 4</text>
+          <text x="541" y="26" fill="rgba(80,96,120,0.8)"  font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">HEAD</text>
+
+          <!-- Backbone connector -->
+          <line x1="38" y1="148" x2="520" y2="148" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="3 2.5"/>
+
+          <!-- INPUT block -->
+          <rect x="6"   y="76" width="64" height="144" rx="1.5" fill="rgba(22,29,42,0.9)" stroke="rgba(80,96,120,0.4)" stroke-width="1"/>
+          <text x="38"  y="144" fill="rgba(130,140,160,0.9)" font-family="DM Mono,monospace" font-size="8"  text-anchor="middle">224×224</text>
+          <text x="38"  y="157" fill="rgba(100,115,135,0.7)" font-family="DM Mono,monospace" font-size="8"  text-anchor="middle">RGB</text>
+
+          <!-- Arrow 1 -->
+          <line x1="70" y1="148" x2="83" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
+          <polygon points="80,144.5 85,148 80,151.5" fill="rgba(70,85,110,0.6)"/>
+
+          <!-- CNN Stage 1 -->
+          <rect x="86"  y="86"  width="104" height="124" rx="1.5" fill="rgba(0,212,200,0.06)" stroke="#00d4c8" stroke-width="0.9" opacity="0.9"/>
+          <rect x="86"  y="86"  width="104" height="3.5" fill="#00d4c8" opacity="0.5"/>
+          <text x="138" y="128" fill="#00d4c8" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle" opacity="0.9">CoAt Block</text>
+          <text x="138" y="143" fill="rgba(0,212,200,0.6)" font-family="DM Mono,monospace" font-size="7.5" text-anchor="middle">56 × 56</text>
+          <text x="138" y="156" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">conv + pool</text>
+          <text x="138" y="167" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">channels: 64</text>
+
+          <!-- Arrow 2 -->
+          <line x1="190" y1="148" x2="203" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
+          <polygon points="200,144.5 205,148 200,151.5" fill="rgba(70,85,110,0.6)"/>
+
+          <!-- CNN Stage 2 -->
+          <rect x="206" y="92"  width="104" height="112" rx="1.5" fill="rgba(0,212,200,0.06)" stroke="#00d4c8" stroke-width="0.9" opacity="0.8"/>
+          <rect x="206" y="92"  width="104" height="3.5" fill="#00d4c8" opacity="0.4"/>
+          <text x="258" y="130" fill="#00d4c8" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle" opacity="0.8">CoAt Block</text>
+          <text x="258" y="145" fill="rgba(0,212,200,0.6)" font-family="DM Mono,monospace" font-size="7.5" text-anchor="middle">28 × 28</text>
+          <text x="258" y="158" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">conv + pool</text>
+          <text x="258" y="169" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">channels: 128</text>
+
+          <!-- Arrow 3 -->
+          <line x1="310" y1="148" x2="323" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
+          <polygon points="320,144.5 325,148 320,151.5" fill="rgba(70,85,110,0.6)"/>
+
+          <!-- Swin Stage 3 -->
+          <rect x="326" y="97"  width="104" height="102" rx="1.5" fill="rgba(245,166,35,0.06)" stroke="#f5a623" stroke-width="0.9" opacity="0.9"/>
+          <rect x="326" y="97"  width="104" height="3.5" fill="#f5a623" opacity="0.4"/>
+          <text x="378" y="133" fill="#f5a623" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle">Swin Block</text>
+          <text x="378" y="148" fill="rgba(245,166,35,0.6)" font-family="DM Mono,monospace" font-size="7.5" text-anchor="middle">14 × 14</text>
+          <text x="378" y="161" fill="rgba(245,166,35,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">W-MSA + FFN</text>
+          <text x="378" y="172" fill="rgba(245,166,35,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">heads: 4</text>
+
+          <!-- Arrow 4 -->
+          <line x1="430" y1="148" x2="443" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
+          <polygon points="440,144.5 445,148 440,151.5" fill="rgba(70,85,110,0.6)"/>
+
+          <!-- Swin Stage 4 -->
+          <rect x="446" y="103" width="88"  height="90"  rx="1.5" fill="rgba(245,166,35,0.06)" stroke="#f5a623" stroke-width="0.9" opacity="0.8"/>
+          <rect x="446" y="103" width="88"  height="3.5" fill="#f5a623" opacity="0.35"/>
+          <text x="490" y="137" fill="#f5a623" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle">Swin Block</text>
+          <text x="490" y="152" fill="rgba(245,166,35,0.6)" font-family="DM Mono,monospace" font-size="7.5" text-anchor="middle">7 × 7</text>
+          <text x="490" y="165" fill="rgba(245,166,35,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">SW-MSA, h:8</text>
+
+          <!-- Arrow 5 -->
+          <line x1="534" y1="148" x2="546" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
+          <polygon points="543,144.5 548,148 543,151.5" fill="rgba(70,85,110,0.6)"/>
+
+          <!-- HEAD block -->
+          <rect x="549" y="111" width="25" height="74" rx="1.5" fill="rgba(22,29,42,0.9)" stroke="rgba(80,96,120,0.4)" stroke-width="1"/>
+          <text x="562" y="154" fill="rgba(120,130,150,0.8)" font-family="DM Mono,monospace" font-size="6.5" text-anchor="middle" transform="rotate(-90 562 148)">GAP → FC5</text>
+
+          <!-- Animated dot -->
+          <circle id="archDot" cx="-20" cy="148" r="4.5" fill="#00d4c8" filter="url(#glow)" opacity="0"/>
+
+          <!-- Legend -->
+          <rect x="8"   y="256" width="13" height="8" fill="rgba(0,212,200,0.15)" stroke="#00d4c8" stroke-width="0.6"/>
+          <text x="25"  y="264" fill="rgba(0,212,200,0.7)" font-family="DM Mono,monospace" font-size="8">CNN (CoAt)</text>
+          <rect x="118" y="256" width="13" height="8" fill="rgba(245,166,35,0.15)" stroke="#f5a623" stroke-width="0.6"/>
+          <text x="135" y="264" fill="rgba(245,166,35,0.7)" font-family="DM Mono,monospace" font-size="8">Swin Transformer</text>
+          <rect x="268" y="256" width="13" height="8" fill="rgba(22,29,42,0.9)"   stroke="rgba(80,96,120,0.4)" stroke-width="0.6"/>
+          <text x="285" y="264" fill="rgba(120,130,150,0.6)" font-family="DM Mono,monospace" font-size="8">Input / Head</text>
+        </svg>
+      </div>
+
+      <div class="arch-params">
+        <div class="arch-stat">
+          <div class="arch-stat-lbl">Parameters</div>
+          <div class="arch-stat-val">8.5M</div>
+        </div>
+        <div class="arch-stat">
+          <div class="arch-stat-lbl">Input Size</div>
+          <div class="arch-stat-val dim">224²</div>
+        </div>
+        <div class="arch-stat">
+          <div class="arch-stat-lbl">Training</div>
+          <div class="arch-stat-val dim">scratch</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Results table + CV summary -->
+    <div>
+      <div class="tbl-lbl">// benchmark_results.comparison</div>
+      <table class="exp-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Loss</th>
+            <th>QWK</th>
+            <th>Macro F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>coatmini</td>
+            <td>ordinal</td>
+            <td>0.775</td>
+            <td>0.490</td>
+          </tr>
+          <tr>
+            <td>coat_small</td>
+            <td>ordinal</td>
+            <td>0.767</td>
+            <td>0.488</td>
+          </tr>
+          <tr class="row-best">
+            <td>coatmini<span class="tag-best">★</span></td>
+            <td>focal_weighted</td>
+            <td>0.773</td>
+            <td>0.640</td>
+          </tr>
+          <tr>
+            <td>coat_deep v2</td>
+            <td>focal_weighted</td>
+            <td>0.723</td>
+            <td>0.593</td>
+          </tr>
+          <tr class="row-pre">
+            <td>EfficientNet-B4<span class="tag-pre">pretrained</span></td>
+            <td>focal_weighted</td>
+            <td>0.906</td>
+            <td>0.892</td>
+          </tr>
+          <tr class="row-pre">
+            <td>ViT-B/16<span class="tag-pre">pretrained</span></td>
+            <td>focal_weighted</td>
+            <td>0.846</td>
+            <td>0.832</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- CV summary -->
+      <div class="cv-card">
+        <span class="cv-text">5-fold CV: QWK 0.741 ± 0.070 | Macro F1 0.607 ± 0.084</span>
+        <div class="cv-spark" title="Per-fold QWK: 0.712, 0.731, 0.758, 0.779, 0.725">
+          <!-- Heights normalized to max 0.779 -->
+          <div class="spark-bar" style="height:91.4%;" title="Fold 1: 0.712"></div>
+          <div class="spark-bar" style="height:93.8%;" title="Fold 2: 0.731"></div>
+          <div class="spark-bar" style="height:97.3%;" title="Fold 3: 0.758"></div>
+          <div class="spark-bar" style="height:100%;"  title="Fold 4: 0.779"></div>
+          <div class="spark-bar" style="height:93.1%;" title="Fold 5: 0.725"></div>
+        </div>
+      </div>
+
+      <!-- Training config -->
+      <div class="train-cfg">
+        <div class="train-cfg-lbl">// training_config</div>
+        <div class="train-cfg-grid">
+          <div><span>dataset:&nbsp;</span>APTOS 2019</div>
+          <div><span>optimizer:&nbsp;</span>AdamW</div>
+          <div><span>augment:&nbsp;</span>RandAugment</div>
+          <div><span>lr:&nbsp;</span>1e-4 → cosine decay</div>
+          <div><span>pretrained:&nbsp;</span>none</div>
+          <div><span>epochs:&nbsp;</span>50 × 5 folds</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ======================================================
+     FOOTER
+     ====================================================== -->
+<footer>
+  RetinaGrade — Licență în Informatică, 2026 · hybrid_coatmini · 5-fold CV QWK 0.741
+</footer>
+
+<!-- ======================================================
+     JAVASCRIPT
+     ====================================================== -->
+<script>
+'use strict';
+
+/* ----------------------------------------------------------
+   Hardcoded demo prediction
+   ---------------------------------------------------------- */
+const DEMO = {
+  predicted: 1,   // Mild DR
+  scores:    [8.2, 53.9, 22.1, 11.4, 4.4],
+  labels:    ['No DR', 'Mild DR', 'Moderate DR', 'Severe DR', 'Proliferative DR'],
+  stages:    [
+    'No Retinopathy Detected',
+    'ETDRS Stage 2 · Predicted Severity Level',
+    'ETDRS Stage 3 · Clinically Significant',
+    'ETDRS Stage 4 · Severe Non-Proliferative DR',
+    'ETDRS Stage 5 · Proliferative DR'
+  ],
+  descs: [
+    'No lesions detected. The fundus appears within normal limits. Routine annual screening is recommended to monitor for any early development of retinal changes.',
+    'Microaneurysms present with possible small retinal hemorrhages. Early diabetic changes detected in the retinal vasculature. Close monitoring and glycemic control are recommended.',
+    'Retinal hemorrhages, microaneurysms, and hard exudates present. Clinically significant macular edema may be developing. Ophthalmology referral within 3 months is advised.',
+    'Multiple retinal hemorrhages, venous beading, and intraretinal microvascular abnormalities (IRMA) identified. High risk of progression to proliferative disease. Urgent referral required.',
+    'Neovascularization of the disc (NVD) or elsewhere (NVE) detected. Risk of vitreous hemorrhage is elevated. Immediate ophthalmological intervention — laser or anti-VEGF — is required.'
+  ]
+};
+
+/* ----------------------------------------------------------
+   DOM references
+   ---------------------------------------------------------- */
+const uploadZone   = document.getElementById('uploadZone');
+const fileInput    = document.getElementById('file-input');
+const uploadPrev   = document.getElementById('uploadPreview');
+const analyzeWrap  = document.getElementById('analyzeWrap');
+const analyzeBtn   = document.getElementById('analyzeBtn');
+const uploadError  = document.getElementById('uploadError');
+const resultsEl    = document.getElementById('results');
+const resultImg    = document.getElementById('resultImg');
+const gradcamImg   = document.getElementById('gradcamImg');
+const sevBadges    = document.getElementById('sevBadges');
+const interpCard   = document.getElementById('interpCard');
+const interpClass  = document.getElementById('interpClass');
+const interpDesc   = document.getElementById('interpDesc');
+const interpWarn   = document.getElementById('interpWarn');
+const archSvg      = document.getElementById('archSvg');
+const archDot      = document.getElementById('archDot');
+
+let imageSrc  = null;
+let analyzing = false;
+
+/* ----------------------------------------------------------
+   Upload handling
+   ---------------------------------------------------------- */
+uploadZone.addEventListener('click', () => fileInput.click());
+
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+});
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+  fileInput.value = '';
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    imageSrc = ev.target.result;
+    uploadPrev.src = imageSrc;
+    uploadZone.classList.add('has-image');
+    analyzeWrap.classList.add('show');
+    hideError();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ----------------------------------------------------------
+   Error state
+   ---------------------------------------------------------- */
+function showError() {
+  uploadError.classList.add('show');
+  clearTimeout(showError._t);
+  showError._t = setTimeout(() => uploadError.classList.remove('show'), 2200);
+}
+function hideError() { uploadError.classList.remove('show'); }
+
+/* ----------------------------------------------------------
+   Analysis flow
+   ---------------------------------------------------------- */
+analyzeBtn.addEventListener('click', () => {
+  if (analyzing) return;
+  if (!imageSrc) { showError(); return; }
+  startAnalysis();
+});
+
+function startAnalysis() {
+  analyzing = true;
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = 'Analyzing…';
+
+  // Trigger scan animation
+  uploadZone.classList.add('scanning');
+
+  setTimeout(() => {
+    uploadZone.classList.remove('scanning');
+    analyzing = false;
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = 'Re-Analyze';
+    revealResults();
+  }, 1650);
+}
+
+/* ----------------------------------------------------------
+   Reveal results
+   ---------------------------------------------------------- */
+function revealResults() {
+  // Set images
+  resultImg.src  = imageSrc;
+  gradcamImg.src = imageSrc;
+
+  // Show section
+  resultsEl.style.display = 'block';
+  resultsEl.classList.add('visible');
+
+  // Scroll
+  setTimeout(() => resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+
+  // Stagger panels
+  const panels = [
+    document.getElementById('rPanel1'),
+    document.getElementById('rPanel2'),
+    document.getElementById('rPanel3')
+  ];
+  panels.forEach((p, i) => {
+    setTimeout(() => p.classList.add('on'), 180 + i * 110);
+  });
+
+  // Animate bars (after panels start appearing)
+  setTimeout(animateBars, 350);
+
+  // Badges
+  setTimeout(updateBadges, 300);
+
+  // Interpretation card
+  setTimeout(() => {
+    updateInterpretation();
+    interpCard.classList.add('on');
+  }, 500);
+}
+
+/* ----------------------------------------------------------
+   Confidence bars
+   ---------------------------------------------------------- */
+function animateBars() {
+  const fills = document.querySelectorAll('.conf-fill');
+  const vals  = document.querySelectorAll('.conf-val');
+  const pred  = DEMO.predicted;
+
+  // Apply class styling and reset width (no transition during reset)
+  fills.forEach((fill, i) => {
+    fill.classList.remove('predicted', 'adjacent');
+    vals[i].classList.remove('predicted', 'adjacent');
+
+    if (i === pred) {
+      fill.classList.add('predicted');
+      vals[i].classList.add('predicted');
+    } else if (Math.abs(i - pred) === 1) {
+      fill.classList.add('adjacent');
+      vals[i].classList.add('adjacent');
+    }
+
+    fill.style.transition = 'none';
+    fill.style.width = '0%';
+  });
+
+  // Force reflow then re-enable transition and animate
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      fills.forEach((fill, i) => {
+        fill.style.transition = '';
+        setTimeout(() => {
+          fill.style.width = DEMO.scores[i] + '%';
+        }, i * 100);
+      });
+    });
+  });
+}
+
+/* ----------------------------------------------------------
+   Severity badges
+   ---------------------------------------------------------- */
+function updateBadges() {
+  const badges = sevBadges.querySelectorAll('.sev-badge');
+  const pred   = DEMO.predicted;
+  badges.forEach((b, i) => {
+    b.classList.remove('predicted', 'adjacent');
+    if (i === pred) b.classList.add('predicted');
+    else if (Math.abs(i - pred) === 1) b.classList.add('adjacent');
+  });
+}
+
+/* ----------------------------------------------------------
+   Interpretation card
+   ---------------------------------------------------------- */
+function updateInterpretation() {
+  const p = DEMO.predicted;
+  interpClass.textContent = DEMO.labels[p];
+  interpDesc.textContent  = DEMO.descs[p];
+
+  // Stage label — update it in DOM
+  const stageEl = interpCard.querySelector('.interp-stage');
+  if (stageEl) stageEl.textContent = DEMO.stages[p];
+
+  // Warning for severity ≥ 2
+  if (p >= 2) interpWarn.classList.add('show');
+  else         interpWarn.classList.remove('show');
+}
+
+/* ----------------------------------------------------------
+   Architecture dot animation (IntersectionObserver + rAF)
+   ---------------------------------------------------------- */
+const ARCH_WAYPOINTS = [38, 138, 258, 378, 490, 562];
+const ARCH_CY        = 148;
+const ARCH_PASS_MS   = 3000;
+const ARCH_PAUSE_MS  = 700;
+
+let dotRafId    = null;
+let dotRunning  = false;
+
+function ease(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+function startDotAnimation() {
+  if (dotRunning) return;
+  dotRunning = true;
+
+  let startTs = null;
+  const cycle = ARCH_PASS_MS + ARCH_PAUSE_MS;
+
+  function frame(ts) {
+    if (!startTs) startTs = ts;
+    const elapsed = (ts - startTs) % cycle;
+
+    if (elapsed < ARCH_PASS_MS) {
+      const t        = elapsed / ARCH_PASS_MS;
+      const segCount = ARCH_WAYPOINTS.length - 1;
+      const segPos   = t * segCount;
+      const segIdx   = Math.min(Math.floor(segPos), segCount - 1);
+      const segFrac  = ease(segPos - segIdx);
+      const cx       = ARCH_WAYPOINTS[segIdx] + (ARCH_WAYPOINTS[segIdx + 1] - ARCH_WAYPOINTS[segIdx]) * segFrac;
+
+      // Fade in at start, fade out at end
+      const alpha = elapsed < 200
+        ? elapsed / 200
+        : elapsed > ARCH_PASS_MS - 200
+          ? (ARCH_PASS_MS - elapsed) / 200
+          : 1;
+
+      archDot.setAttribute('cx', cx.toFixed(1));
+      archDot.setAttribute('cy', ARCH_CY);
+      archDot.setAttribute('opacity', (alpha * 0.95).toFixed(3));
+    } else {
+      archDot.setAttribute('opacity', 0);
+    }
+
+    dotRafId = requestAnimationFrame(frame);
+  }
+
+  dotRafId = requestAnimationFrame(frame);
+}
+
+const archObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) startDotAnimation();
+  });
+}, { threshold: 0.25 });
+
+if (archSvg) archObserver.observe(archSvg);
+</script>
+</body>
+</html>
