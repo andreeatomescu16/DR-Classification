@@ -179,7 +179,8 @@ def compute_gradcam(
 
 
 def cam_to_heatmap_rgb(cam01: np.ndarray, out_h: int, out_w: int) -> np.ndarray:
-    cam_resized = cv2.resize(cam01, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
+    cam01 = cv2.GaussianBlur(cam01, ksize=(0, 0), sigmaX=8)
+    cam_resized = cv2.resize(cam01, (out_w, out_h), interpolation=cv2.INTER_CUBIC)
     heatmap = cv2.applyColorMap((cam_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
     return heatmap
