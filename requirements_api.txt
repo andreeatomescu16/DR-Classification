@@ -1,0 +1,11 @@
+# ── RetinaGrade API — additional dependencies for api.py ─────────────────────
+# The full ML stack (torch, lightning, timm, albumentations, opencv, etc.) is
+# already listed in requirements.txt. This file adds only what is needed to
+# serve the FastAPI backend.
+#
+# Install everything with:
+#   pip install -r requirements.txt -r requirements_api.txt
+
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9

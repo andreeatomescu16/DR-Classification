@@ -1,5 +1,45 @@
 # Diabetic Retinopathy Severity Classification
 
+---
+
+## Running RetinaGrade (Web App)
+
+### 1 — Install dependencies
+```bash
+pip install -r requirements.txt -r requirements_api.txt
+```
+
+### 2 — Start the backend
+```bash
+python api.py
+```
+The server starts on `http://localhost:8000`.
+At startup it prints the checkpoint path and model name it loaded, e.g.:
+```
+[RetinaGrade] Checkpoint: /Users/Andreea/lightning_logs/version_34/checkpoints/hybrid_coat_small-s224-epoch=30-val_qwk=0.7759.ckpt
+[RetinaGrade] Model : hybrid_coat_small
+[RetinaGrade] Input : 224×224
+[RetinaGrade] GradCAM target layer: 'stage2.3'
+```
+
+### 3 — Open the frontend
+Open `retinagrade.html` directly in your browser (no web server needed):
+```bash
+open retinagrade.html          # macOS
+# or double-click the file in Finder
+```
+
+Drop or click to upload a fundus image (JPG or PNG). Click **Analyze Image**.
+Results appear below: predicted DR grade, probability bars, and a Grad-CAM overlay.
+
+### API endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/predict` | Upload image (`multipart/form-data`, field `file`) → grade, label, probabilities, gradcam_image |
+| `GET`  | `/health`  | Liveness check → model name and checkpoint path |
+
+---
+
 An end-to-end deep learning system for classifying Diabetic Retinopathy (DR) severity from retinal fundus images into five clinically defined categories (0-4).
 
 ## Project Overview
