@@ -10,6 +10,7 @@ This module provides:
 """
 
 import argparse
+from typing import Optional
 import numpy as np
 import torch
 import torch.nn as nn
@@ -37,6 +38,7 @@ class DRModule(L.LightningModule):
     def __init__(
         self,
         model_name="efficientnet_b3",
+        pretrained: Optional[bool] = None,
         lr=1e-4,
         img_size=512,
         loss_type='ce',
@@ -55,6 +57,7 @@ class DRModule(L.LightningModule):
         """
         Args:
             model_name: Model architecture name
+            pretrained: If False, random init (timm). If None, use ImageNet weights for timm models.
             lr: Initial learning rate
             img_size: Image size (square)
             loss_type: One of 'ce', 'weighted_ce', 'focal', 'focal_weighted',
@@ -77,13 +80,18 @@ class DRModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=['class_counts'])
 
-        # Custom hybrid models are trained from scratch; timm models use pretrained weights.
+        # Custom hybrid models are always from scratch; timm defaults to ImageNet unless pretrained=False.
         from drlib.models import _SCRATCH_MODELS
-        pretrained = model_name not in _SCRATCH_MODELS
+        if model_name in _SCRATCH_MODELS:
+            use_pretrained = False
+        elif pretrained is not None:
+            use_pretrained = pretrained
+        else:
+            use_pretrained = True
         self.model = create_model(
             model_name,
             num_classes=5,
-            pretrained=pretrained,
+            pretrained=use_pretrained,
             drop_path_rate=drop_path_rate,
         )
 
@@ -360,6 +368,11 @@ def main():
     
     # Model arguments
     ap.add_argument("--model", default="efficientnet_b3", help="Model architecture")
+    ap.add_argument(
+        "--no_pretrained",
+        action="store_true",
+        help="Train timm backbone from random init (timm pretrained=False)",
+    )
     ap.add_argument("--freeze_backbone", action='store_true', help="Freeze backbone initially")
     ap.add_argument("--unfreeze_epoch", type=int, default=None, help="Epoch to unfreeze backbone")
     
@@ -423,6 +436,7 @@ def main():
     # Create model
     model = DRModule(
         model_name=args.model,
+        pretrained=False if args.no_pretrained else None,
         lr=args.lr,
         img_size=args.img_size,
         loss_type=args.loss,

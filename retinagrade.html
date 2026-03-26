@@ -14,10 +14,10 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg:        #0a0c0f;
-  --bg-2:      #0d1016;
-  --bg-3:      #111520;
-  --bg-4:      #161d2a;
+  --bg:        #080b10;
+  --bg-2:      #0d1118;
+  --bg-3:      #111620;
+  --bg-4:      #161d2c;
   --teal:      #00d4c8;
   --teal-dim:  rgba(0,212,200,0.12);
   --teal-glow: rgba(0,212,200,0.25);
@@ -33,7 +33,76 @@
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--text); font-family: var(--mono); overflow-x: hidden; line-height: 1.6; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   GLOBAL BACKGROUND — layered gradient mesh
+   ============================================================ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* Teal bloom — top-left, large and punchy */
+    radial-gradient(
+      ellipse 80% 65% at -5% -5%,
+      rgba(0, 212, 200, 0.32) 0%,
+      rgba(0, 190, 185, 0.12) 40%,
+      transparent 68%
+    ),
+    /* Teal bloom — right side, tall */
+    radial-gradient(
+      ellipse 60% 70% at 108% 40%,
+      rgba(0, 200, 192, 0.22) 0%,
+      rgba(0, 170, 165, 0.07) 45%,
+      transparent 70%
+    ),
+    /* Teal accent — bottom-left, spreads low */
+    radial-gradient(
+      ellipse 55% 45% at -8% 100%,
+      rgba(0, 190, 185, 0.16) 0%,
+      rgba(0, 150, 145, 0.05) 48%,
+      transparent 70%
+    ),
+    /* Amber warmth — bottom-right corner */
+    radial-gradient(
+      ellipse 65% 50% at 108% 105%,
+      rgba(245, 166, 35, 0.18) 0%,
+      rgba(210, 130, 20, 0.07) 42%,
+      transparent 66%
+    ),
+    /* Deep navy base */
+    linear-gradient(
+      145deg,
+      #0e1824 0%,
+      #090f1b 30%,
+      #06080e 60%,
+      #0b0e16 100%
+    );
+}
+
+/* Noise grain texture overlay for depth */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* All direct children of body that aren't fixed need z-index above the background */
+header, section, footer { position: relative; z-index: 1; }
 
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -77,14 +146,17 @@ nav a:hover { color: var(--teal); }
 #hero::before {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(0,212,200,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,200,0.025) 1px, transparent 1px);
+    linear-gradient(rgba(0,212,200,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,200,0.022) 1px, transparent 1px);
   background-size: 56px 56px;
+  z-index: 0;
 }
-/* Vignette over grid */
+/* Subtle vignette over grid only — let the body gradient breathe */
 #hero::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 35%, var(--bg) 100%);
+  background:
+    radial-gradient(ellipse 55% 55% at 50% 50%, transparent 50%, rgba(6,8,14,0.35) 100%);
+  z-index: 0;
 }
 
 .hero-inner {
@@ -210,7 +282,9 @@ nav a:hover { color: var(--teal); }
 /* Preview image */
 .uz-preview {
   position: absolute; inset: 0; border-radius: 50%;
-  object-fit: cover; opacity: 0; transition: opacity 0.4s;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center center;
+  opacity: 0; transition: opacity 0.4s;
 }
 .upload-zone.has-image .uz-preview { opacity: 1; }
 .upload-zone.has-image .uz-icon,
@@ -219,6 +293,7 @@ nav a:hover { color: var(--teal); }
 .upload-zone.has-image .uz-grid,
 .upload-zone.has-image .uz-cross,
 .upload-zone.has-image .uz-reticle { opacity: 0; pointer-events: none; }
+ 
 
 /* Scan line */
 .scan-line {
@@ -626,10 +701,8 @@ footer {
 /* ============================================================
    GRAD-CAM PANEL — real vs mock states
    ============================================================ */
-/* Hide CSS mock overlay when we have a real GradCAM image */
 .gcam-frame.real-gcam .gcam-overlay { display: none; }
 .gcam-frame.real-gcam .gcam-img     { filter: none; }
-/* Dim the fallback (original image shown when GradCAM unavailable) */
 .gcam-frame.no-gcam .gcam-img { filter: saturate(0) brightness(0.45); }
 
 /* ============================================================
@@ -654,7 +727,6 @@ footer {
      ====================================================== -->
 <header>
   <a href="#hero" class="logo">
-    <!-- Stylized retinal cross-section logo mark -->
     <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="17" cy="17" r="15.5" stroke="#00d4c8" stroke-width="0.9" opacity="0.55"/>
       <circle cx="17" cy="17" r="9.5"  stroke="#00d4c8" stroke-width="0.7" opacity="0.35"/>
@@ -691,36 +763,29 @@ footer {
 
     <p class="hero-sub fade-in-up fi-3">
       Powered by a custom hybrid CNN+Transformer architecture trained from scratch
-      on the APTOS 2019 dataset. Not intended for clinical use.
+      on the  Eyepacs, Aptos, Messidor datasets. 
     </p>
 
     <!-- Upload Zone -->
     <div class="upload-wrap fade-in-up fi-4">
       <div class="upload-zone" id="uploadZone">
-        <!-- Pulse rings -->
         <div class="pulse-ring"></div>
         <div class="pulse-ring"></div>
-        <!-- Overlays -->
         <div class="uz-grid"></div>
         <div class="uz-cross"></div>
         <div class="uz-reticle"></div>
-        <!-- Icon -->
         <svg class="uz-icon" width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.4">
           <circle cx="19" cy="19" r="12.5" stroke-dasharray="3.5 2.8" opacity="0.6"/>
           <path d="M19 24.5V13.5M13.5 17.5l5.5-5 5.5 5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span class="uz-text">Drop fundus image</span>
         <span class="uz-hint">or click to select · JPG, PNG</span>
-        <!-- Preview -->
         <img class="uz-preview" id="uploadPreview" src="" alt="Uploaded fundus image">
-        <!-- Scan line -->
         <div class="scan-line" id="scanLine"></div>
-        <!-- Loading overlay (shown while API request is in-flight) -->
         <div class="uz-loading" id="uzLoading">
           <div class="uz-spinner"></div>
           <span class="uz-load-text">Analyzing…</span>
         </div>
-        <!-- Error overlay (shown on network/API failure) -->
         <div class="uz-error-msg" id="uzErrorMsg"></div>
       </div>
       <div class="upload-error" id="uploadError">⚠&nbsp; No image loaded</div>
@@ -732,7 +797,7 @@ footer {
       <div class="stat-pill"><div class="pill-dot"></div><span>Params: 8.5M — trained from scratch</span></div>
     </div>
 
-    <!-- Analyze button (shown after upload) -->
+    <!-- Analyze button -->
     <div class="analyze-wrap" id="analyzeWrap">
       <button class="analyze-btn" id="analyzeBtn">Analyze Image</button>
     </div>
@@ -753,7 +818,6 @@ footer {
   </div>
 
   <div class="res-grid">
-    <!-- LEFT: Image + badges -->
     <div class="res-panel" id="rPanel1">
       <div class="panel-lbl">// fundus_input.rgb</div>
       <div class="img-frame">
@@ -770,7 +834,6 @@ footer {
       </div>
     </div>
 
-    <!-- CENTER: Confidence bars -->
     <div class="res-panel" id="rPanel2">
       <div class="panel-lbl">// softmax_confidence.scores</div>
       <div class="conf-bars">
@@ -802,7 +865,6 @@ footer {
       </div>
     </div>
 
-    <!-- RIGHT: Grad-CAM -->
     <div class="res-panel" id="rPanel3">
       <div class="panel-lbl">// gradcam.activation_map</div>
       <div class="gcam-frame">
@@ -825,7 +887,6 @@ footer {
     </div>
   </div>
 
-  <!-- Interpretation card -->
   <div class="interp-card" id="interpCard">
     <div class="interp-class" id="interpClass">Mild DR</div>
     <div class="interp-rule"></div>
@@ -859,7 +920,6 @@ footer {
 
   <div class="model-grid">
 
-    <!-- LEFT: Architecture SVG diagram -->
     <div>
       <div class="arch-lbl">// pipeline_architecture.hybrid_coatmini</div>
       <div class="arch-svg-wrap">
@@ -875,7 +935,6 @@ footer {
           </defs>
           <rect width="580" height="300" fill="url(#ag)"/>
 
-          <!-- Labels row -->
           <text x="38"  y="26" fill="rgba(80,96,120,0.8)"  font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">INPUT</text>
           <text x="138" y="26" fill="#00d4c8"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">CNN STAGE 1</text>
           <text x="248" y="26" fill="#00d4c8"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">CNN STAGE 2</text>
@@ -883,19 +942,15 @@ footer {
           <text x="458" y="26" fill="#f5a623"               font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">SWIN ATT. 4</text>
           <text x="541" y="26" fill="rgba(80,96,120,0.8)"  font-family="DM Mono,monospace" font-size="7.5" letter-spacing="0.09em" text-anchor="middle">HEAD</text>
 
-          <!-- Backbone connector -->
           <line x1="38" y1="148" x2="520" y2="148" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="3 2.5"/>
 
-          <!-- INPUT block -->
           <rect x="6"   y="76" width="64" height="144" rx="1.5" fill="rgba(22,29,42,0.9)" stroke="rgba(80,96,120,0.4)" stroke-width="1"/>
           <text x="38"  y="144" fill="rgba(130,140,160,0.9)" font-family="DM Mono,monospace" font-size="8"  text-anchor="middle">224×224</text>
           <text x="38"  y="157" fill="rgba(100,115,135,0.7)" font-family="DM Mono,monospace" font-size="8"  text-anchor="middle">RGB</text>
 
-          <!-- Arrow 1 -->
           <line x1="70" y1="148" x2="83" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
           <polygon points="80,144.5 85,148 80,151.5" fill="rgba(70,85,110,0.6)"/>
 
-          <!-- CNN Stage 1 -->
           <rect x="86"  y="86"  width="104" height="124" rx="1.5" fill="rgba(0,212,200,0.06)" stroke="#00d4c8" stroke-width="0.9" opacity="0.9"/>
           <rect x="86"  y="86"  width="104" height="3.5" fill="#00d4c8" opacity="0.5"/>
           <text x="138" y="128" fill="#00d4c8" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle" opacity="0.9">CoAt Block</text>
@@ -903,11 +958,9 @@ footer {
           <text x="138" y="156" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">conv + pool</text>
           <text x="138" y="167" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">channels: 64</text>
 
-          <!-- Arrow 2 -->
           <line x1="190" y1="148" x2="203" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
           <polygon points="200,144.5 205,148 200,151.5" fill="rgba(70,85,110,0.6)"/>
 
-          <!-- CNN Stage 2 -->
           <rect x="206" y="92"  width="104" height="112" rx="1.5" fill="rgba(0,212,200,0.06)" stroke="#00d4c8" stroke-width="0.9" opacity="0.8"/>
           <rect x="206" y="92"  width="104" height="3.5" fill="#00d4c8" opacity="0.4"/>
           <text x="258" y="130" fill="#00d4c8" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle" opacity="0.8">CoAt Block</text>
@@ -915,11 +968,9 @@ footer {
           <text x="258" y="158" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">conv + pool</text>
           <text x="258" y="169" fill="rgba(0,212,200,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">channels: 128</text>
 
-          <!-- Arrow 3 -->
           <line x1="310" y1="148" x2="323" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
           <polygon points="320,144.5 325,148 320,151.5" fill="rgba(70,85,110,0.6)"/>
 
-          <!-- Swin Stage 3 -->
           <rect x="326" y="97"  width="104" height="102" rx="1.5" fill="rgba(245,166,35,0.06)" stroke="#f5a623" stroke-width="0.9" opacity="0.9"/>
           <rect x="326" y="97"  width="104" height="3.5" fill="#f5a623" opacity="0.4"/>
           <text x="378" y="133" fill="#f5a623" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle">Swin Block</text>
@@ -927,29 +978,23 @@ footer {
           <text x="378" y="161" fill="rgba(245,166,35,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">W-MSA + FFN</text>
           <text x="378" y="172" fill="rgba(245,166,35,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">heads: 4</text>
 
-          <!-- Arrow 4 -->
           <line x1="430" y1="148" x2="443" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
           <polygon points="440,144.5 445,148 440,151.5" fill="rgba(70,85,110,0.6)"/>
 
-          <!-- Swin Stage 4 -->
           <rect x="446" y="103" width="88"  height="90"  rx="1.5" fill="rgba(245,166,35,0.06)" stroke="#f5a623" stroke-width="0.9" opacity="0.8"/>
           <rect x="446" y="103" width="88"  height="3.5" fill="#f5a623" opacity="0.35"/>
           <text x="490" y="137" fill="#f5a623" font-family="DM Mono,monospace" font-size="9"  text-anchor="middle">Swin Block</text>
           <text x="490" y="152" fill="rgba(245,166,35,0.6)" font-family="DM Mono,monospace" font-size="7.5" text-anchor="middle">7 × 7</text>
           <text x="490" y="165" fill="rgba(245,166,35,0.45)" font-family="DM Mono,monospace" font-size="7"   text-anchor="middle">SW-MSA, h:8</text>
 
-          <!-- Arrow 5 -->
           <line x1="534" y1="148" x2="546" y2="148" stroke="rgba(70,85,110,0.6)" stroke-width="1"/>
           <polygon points="543,144.5 548,148 543,151.5" fill="rgba(70,85,110,0.6)"/>
 
-          <!-- HEAD block -->
           <rect x="549" y="111" width="25" height="74" rx="1.5" fill="rgba(22,29,42,0.9)" stroke="rgba(80,96,120,0.4)" stroke-width="1"/>
           <text x="562" y="154" fill="rgba(120,130,150,0.8)" font-family="DM Mono,monospace" font-size="6.5" text-anchor="middle" transform="rotate(-90 562 148)">GAP → FC5</text>
 
-          <!-- Animated dot -->
           <circle id="archDot" cx="-20" cy="148" r="4.5" fill="#00d4c8" filter="url(#glow)" opacity="0"/>
 
-          <!-- Legend -->
           <rect x="8"   y="256" width="13" height="8" fill="rgba(0,212,200,0.15)" stroke="#00d4c8" stroke-width="0.6"/>
           <text x="25"  y="264" fill="rgba(0,212,200,0.7)" font-family="DM Mono,monospace" font-size="8">CNN (CoAt)</text>
           <rect x="118" y="256" width="13" height="8" fill="rgba(245,166,35,0.15)" stroke="#f5a623" stroke-width="0.6"/>
@@ -975,7 +1020,6 @@ footer {
       </div>
     </div>
 
-    <!-- RIGHT: Results table + CV summary -->
     <div>
       <div class="tbl-lbl">// benchmark_results.comparison</div>
       <table class="exp-table">
@@ -1027,11 +1071,9 @@ footer {
         </tbody>
       </table>
 
-      <!-- CV summary -->
       <div class="cv-card">
         <span class="cv-text">5-fold CV: QWK 0.741 ± 0.070 | Macro F1 0.607 ± 0.084</span>
         <div class="cv-spark" title="Per-fold QWK: 0.712, 0.731, 0.758, 0.779, 0.725">
-          <!-- Heights normalized to max 0.779 -->
           <div class="spark-bar" style="height:91.4%;" title="Fold 1: 0.712"></div>
           <div class="spark-bar" style="height:93.8%;" title="Fold 2: 0.731"></div>
           <div class="spark-bar" style="height:97.3%;" title="Fold 3: 0.758"></div>
@@ -1040,16 +1082,15 @@ footer {
         </div>
       </div>
 
-      <!-- Training config -->
       <div class="train-cfg">
         <div class="train-cfg-lbl">// training_config</div>
         <div class="train-cfg-grid">
-          <div><span>dataset:&nbsp;</span>APTOS 2019</div>
+          <div><span>dataset:&nbsp;</span>Eyepacs, Aptos, Messidor Diabetic Retinopathy</div>
           <div><span>optimizer:&nbsp;</span>AdamW</div>
           <div><span>augment:&nbsp;</span>RandAugment</div>
           <div><span>lr:&nbsp;</span>1e-4 → cosine decay</div>
           <div><span>pretrained:&nbsp;</span>none</div>
-          <div><span>epochs:&nbsp;</span>50 × 5 folds</div>
+          <div><span>epochs:&nbsp;</span>40 × 5 folds</div>
         </div>
       </div>
     </div>
@@ -1070,11 +1111,6 @@ footer {
 <script>
 'use strict';
 
-/* ----------------------------------------------------------
-   Grade metadata — labels, clinical descriptions, stage text.
-   These are static UI strings; the actual grade comes from
-   the API. The DEMO object is kept only for its text content.
-   ---------------------------------------------------------- */
 const DEMO = {
   labels: ['No DR', 'Mild DR', 'Moderate DR', 'Severe DR', 'Proliferative DR'],
   stages: [
@@ -1093,9 +1129,6 @@ const DEMO = {
   ]
 };
 
-/* ----------------------------------------------------------
-   DOM references
-   ---------------------------------------------------------- */
 const uploadZone  = document.getElementById('uploadZone');
 const fileInput   = document.getElementById('file-input');
 const uploadPrev  = document.getElementById('uploadPreview');
@@ -1115,15 +1148,12 @@ const resetBtn    = document.getElementById('resetBtn');
 const archSvg     = document.getElementById('archSvg');
 const archDot     = document.getElementById('archDot');
 
-let imageSrc    = null;   // data-URL for display
-let currentFile = null;   // raw File object for FormData
+let imageSrc    = null;
+let currentFile = null;
 let analyzing   = false;
 
 const API_BASE = 'http://localhost:8000';
 
-/* ----------------------------------------------------------
-   Upload handling
-   ---------------------------------------------------------- */
 uploadZone.addEventListener('click', () => {
   if (!uploadZone.classList.contains('loading')) fileInput.click();
 });
@@ -1163,9 +1193,6 @@ function handleFile(file) {
   reader.readAsDataURL(file);
 }
 
-/* ----------------------------------------------------------
-   Error helpers
-   ---------------------------------------------------------- */
 function showError() {
   uploadError.classList.add('show');
   clearTimeout(showError._t);
@@ -1184,9 +1211,6 @@ function clearApiError() {
   if (uzErrorMsg) uzErrorMsg.textContent = '';
 }
 
-/* ----------------------------------------------------------
-   Analysis flow — real API call
-   ---------------------------------------------------------- */
 analyzeBtn.addEventListener('click', () => {
   if (analyzing) return;
   if (!currentFile) { showError(); return; }
@@ -1199,7 +1223,6 @@ function startAnalysis() {
   analyzeBtn.disabled = true;
   analyzeBtn.textContent = 'Analyzing\u2026';
 
-  // Kick off scan animation and loading overlay simultaneously
   uploadZone.classList.add('scanning', 'loading');
 
   const SCAN_MS  = 1650;
@@ -1207,16 +1230,13 @@ function startAnalysis() {
   let   apiData  = null;
   let   apiError = null;
 
-  // After the scan animation finishes, either show results or keep loading
   setTimeout(() => {
     uploadZone.classList.remove('scanning');
     scanDone = true;
     if      (apiData)  { _finishAnalysis(apiData); }
     else if (apiError) { _handleApiError(apiError); }
-    // else: API still in-flight — spinner stays until fetch resolves
   }, SCAN_MS);
 
-  // POST the image to the backend
   const fd = new FormData();
   fd.append('file', currentFile);
 
@@ -1258,60 +1278,42 @@ function _handleApiError(err) {
   showApiError(msg);
 }
 
-/* ----------------------------------------------------------
-   Reveal results — accepts live API response object
-   ---------------------------------------------------------- */
 function revealResults(data) {
-  // Left panel: original fundus image
   resultImg.src = imageSrc;
 
-  // Right panel: real Grad-CAM or graceful fallback
   const gcamFrame = gradcamImg.closest('.gcam-frame');
   if (data.gradcam_image) {
     gradcamImg.src = 'data:image/png;base64,' + data.gradcam_image;
     gcamFrame.classList.add('real-gcam');
     gcamFrame.classList.remove('no-gcam');
   } else {
-    // Backend returned null (layer unsupported) — show original image dimmed
     gradcamImg.src = imageSrc;
     gcamFrame.classList.remove('real-gcam');
     gcamFrame.classList.add('no-gcam');
   }
 
-  // Show section
   resultsEl.style.display = 'block';
   resultsEl.classList.add('visible');
 
-  // Smooth-scroll to results
   setTimeout(() => resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
 
-  // Stagger-in the three result panels
   ['rPanel1', 'rPanel2', 'rPanel3'].forEach((id, i) => {
     setTimeout(() => document.getElementById(id).classList.add('on'), 180 + i * 110);
   });
 
-  // Animate probability bars
   setTimeout(() => animateBars(data.probabilities, data.grade), 350);
-
-  // Severity badge strip
   setTimeout(() => updateBadges(data.grade), 300);
 
-  // Interpretation card
   setTimeout(() => {
     updateInterpretation(data.grade, data.label);
     interpCard.classList.add('on');
   }, 500);
 }
 
-/* ----------------------------------------------------------
-   Confidence bars
-   Probs is a float[5] array summing to 1.0 (from softmax).
-   ---------------------------------------------------------- */
 function animateBars(probs, pred) {
   const fills = document.querySelectorAll('.conf-fill');
   const vals  = document.querySelectorAll('.conf-val');
 
-  // Apply colour classes and reset bar widths without transition
   fills.forEach((fill, i) => {
     fill.classList.remove('predicted', 'adjacent');
     vals[i].classList.remove('predicted', 'adjacent');
@@ -1328,7 +1330,6 @@ function animateBars(probs, pred) {
     fill.style.width = '0%';
   });
 
-  // Double rAF to force reflow before re-enabling the CSS transition
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       fills.forEach((fill, i) => {
@@ -1341,9 +1342,6 @@ function animateBars(probs, pred) {
   });
 }
 
-/* ----------------------------------------------------------
-   Severity badge strip
-   ---------------------------------------------------------- */
 function updateBadges(pred) {
   sevBadges.querySelectorAll('.sev-badge').forEach((b, i) => {
     b.classList.remove('predicted', 'adjacent');
@@ -1352,9 +1350,6 @@ function updateBadges(pred) {
   });
 }
 
-/* ----------------------------------------------------------
-   Interpretation card
-   ---------------------------------------------------------- */
 function updateInterpretation(grade, label) {
   interpClass.textContent = label;
   interpDesc.textContent  = DEMO.descs[grade];
@@ -1366,29 +1361,22 @@ function updateInterpretation(grade, label) {
   else            interpWarn.classList.remove('show');
 }
 
-/* ----------------------------------------------------------
-   Reset — return to clean upload state
-   ---------------------------------------------------------- */
 if (resetBtn) resetBtn.addEventListener('click', resetApp);
 
 function resetApp() {
-  // Hide results section
   resultsEl.classList.remove('visible');
   setTimeout(() => { resultsEl.style.display = 'none'; }, 20);
 
-  // Reset result panels (so they re-animate next time)
   ['rPanel1', 'rPanel2', 'rPanel3'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('on');
   });
   interpCard.classList.remove('on');
 
-  // Reset GradCAM frame state
   const gcamFrame = gradcamImg ? gradcamImg.closest('.gcam-frame') : null;
   if (gcamFrame) gcamFrame.classList.remove('real-gcam', 'no-gcam');
   if (gradcamImg) gradcamImg.src = '';
 
-  // Reset upload zone
   uploadZone.classList.remove('has-image', 'loading', 'has-error', 'scanning');
   uploadPrev.src = '';
   analyzeWrap.classList.remove('show');
@@ -1398,7 +1386,6 @@ function resetApp() {
   clearApiError();
   hideError();
 
-  // Reset state
   imageSrc    = null;
   currentFile = null;
   analyzing   = false;
@@ -1407,9 +1394,6 @@ function resetApp() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ----------------------------------------------------------
-   Architecture dot animation (unchanged — IntersectionObserver + rAF)
-   ---------------------------------------------------------- */
 const ARCH_WAYPOINTS = [38, 138, 258, 378, 490, 562];
 const ARCH_CY        = 148;
 const ARCH_PASS_MS   = 3000;
