@@ -1,0 +1,33 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Service Unavailable — RetinaGrade</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<div class="error-page">
+  <div class="error-card">
+    <div class="error-icon">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <h1 class="error-title">Analysis Service Unavailable</h1>
+    <p class="error-msg">{{ error }}</p>
+    <p class="error-msg" style="margin-top:12px;font-size:11px;color:var(--text-muted);">
+      Please ensure the FastAPI backend is running:<br>
+      <code style="color:var(--accent-secondary);">python api.py</code>
+    </p>
+    <div style="margin-top:28px;display:flex;gap:12px;justify-content:center;">
+      <a href="{% url 'core:analyse' %}" class="btn btn-primary">Try Again</a>
+      <a href="{% url 'core:dashboard' %}" class="btn btn-secondary">Dashboard</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

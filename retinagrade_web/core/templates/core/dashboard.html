@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+{% load core_tags %}
+{% block title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Welcome back, {{ user.get_full_name|default:user.username }}</h1>
+    <p class="page-subtitle">{{ user.get_role_display }} · {{ user.institution|default:"No institution set" }}</p>
+  </div>
+  <a href="{% url 'core:analyse' %}" class="btn btn-primary">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+    </svg>
+    New Analysis
+  </a>
+</div>
+
+<!-- Stats row -->
+<div class="grid-4" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-title">Total Analyses</div>
+    <div class="card-value">{{ total }}</div>
+    <div class="card-sub">All time</div>
+  </div>
+  {% for i in "01234" %}
+  {% with idx=forloop.counter0 %}
+  <div class="card" style="border-top:2px solid var(--grade-{{ idx }});">
+    <div class="card-title">Grade {{ idx }}</div>
+    <div class="card-value" style="font-size:28px;">—</div>
+    <div class="card-sub grade-{{ idx }}-text">{{ grade_labels_json|slice:"1:-1"|truncatechars:20 }}</div>
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+<!-- Grade distribution chart -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-title">Grade Distribution</div>
+  <div class="chart-wrap">
+    <canvas id="gradeChart"></canvas>
+  </div>
+</div>
+
+<!-- Recent predictions -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="card-title" style="margin:0;">Recent Predictions</div>
+    <a href="{% url 'core:history' %}" class="btn btn-secondary btn-sm">View All</a>
+  </div>
+  {% if recent %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Image</th>
+        <th>Grade</th>
+        <th>Confidence</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for pred in recent %}
+      <tr>
+        <td>
+          {% if pred.image %}
+          <img src="{{ pred.image.url }}" class="thumbnail" alt="Fundus thumbnail">
+          {% else %}—{% endif %}
+        </td>
+        <td><span class="grade-badge {{ pred.grade|grade_class }}">{{ pred.label }}</span></td>
+        <td>{{ pred.confidence|mul100 }}%</td>
+        <td>{{ pred.created_at|date:"M j, Y H:i" }}</td>
+        <td>
+          <a href="{% url 'core:prediction_detail' pred.pk %}" class="btn btn-secondary btn-sm">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">
+    No analyses yet. <a href="{% url 'core:analyse' %}">Upload your first fundus image.</a>
+  </p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+initDashboardChart('gradeChart', {{ grade_counts|safe }}, {{ grade_labels|safe }});
+// Update stat cards dynamically
+const counts = {{ grade_counts|safe }};
+const labels = {{ grade_labels|safe }};
+document.querySelectorAll('.grid-4 .card').forEach((card, i) => {
+  if (i === 0) return; // skip total card
+  const idx = i - 1;
+  if (idx < 5) {
+    card.querySelector('.card-value').textContent = counts[idx];
+    card.querySelector('.card-sub').textContent = labels[idx];
+  }
+});
+</script>
+{% endblock %}

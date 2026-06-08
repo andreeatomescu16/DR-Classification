@@ -1,0 +1,93 @@
+{% extends "core/base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Admin Dashboard</h1>
+    <p class="page-subtitle">System overview and user management</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="grid-3" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-title">Total Users</div>
+    <div class="card-value">{{ total_users }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Total Predictions</div>
+    <div class="card-value">{{ total_predictions }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Backend Status</div>
+    <div style="margin-top:12px;display:flex;align-items:center;">
+      <span class="status-dot {% if backend_up %}online{% else %}offline{% endif %}"></span>
+      <span style="font-size:14px;color:{% if backend_up %}var(--success){% else %}var(--danger){% endif %}">
+        {% if backend_up %}FastAPI Online{% else %}FastAPI Offline{% endif %}
+      </span>
+    </div>
+    <div class="card-sub">{{ request.scheme }}://{{ request.get_host }} → FastAPI</div>
+  </div>
+</div>
+
+<!-- Grade distribution -->
+<div class="grid-2" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-title">Grade Distribution</div>
+    <div class="chart-wrap">
+      <canvas id="adminGradeChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Quick Links</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+      <a href="/django-admin/" class="btn btn-secondary" target="_blank">Django Admin Panel</a>
+      <a href="/django-admin/core/prediction/" class="btn btn-secondary" target="_blank">Manage Predictions</a>
+      <a href="/django-admin/accounts/customuser/" class="btn btn-secondary" target="_blank">Manage Users</a>
+    </div>
+  </div>
+</div>
+
+<!-- User list -->
+<div class="card">
+  <div class="card-title">Recent Users (last 20)</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Institution</th>
+        <th>Joined</th>
+        <th>Active</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td style="color:var(--text-secondary);">{{ u.email|default:"—" }}</td>
+        <td><span class="role-badge {{ u.role }}">{{ u.get_role_display }}</span></td>
+        <td style="color:var(--text-secondary);">{{ u.institution|default:"—" }}</td>
+        <td style="color:var(--text-secondary);">{{ u.date_joined|date:"M j, Y" }}</td>
+        <td>
+          {% if u.is_active %}
+          <span style="color:var(--success);font-size:11px;">Yes</span>
+          {% else %}
+          <span style="color:var(--danger);font-size:11px;">No</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+initDonutChart('adminGradeChart', {{ grade_counts|safe }}, {{ grade_labels|safe }});
+</script>
+{% endblock %}

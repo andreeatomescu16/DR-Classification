@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{% endblock %} — RetinaGrade</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <a href="/" class="auth-logo">
+      <svg width="26" height="26" viewBox="0 0 34 34" fill="none" style="color:var(--accent-secondary);">
+        <circle cx="17" cy="17" r="15.5" stroke="currentColor" stroke-width="0.9" opacity="0.55"/>
+        <circle cx="17" cy="17" r="9.5"  stroke="currentColor" stroke-width="0.7" opacity="0.35"/>
+        <circle cx="17" cy="17" r="3.5"  fill="currentColor" opacity="0.85"/>
+        <line x1="17" y1="1"  x2="17" y2="7.5"  stroke="currentColor" stroke-width="1.4" opacity="0.7"/>
+        <line x1="17" y1="26.5" x2="17" y2="33"  stroke="currentColor" stroke-width="1.4" opacity="0.7"/>
+        <line x1="1"  y1="17" x2="7.5" y2="17"  stroke="currentColor" stroke-width="1.4" opacity="0.7"/>
+        <line x1="26.5" y1="17" x2="33" y2="17" stroke="currentColor" stroke-width="1.4" opacity="0.7"/>
+      </svg>
+      <span class="auth-logo-text">RetinaGrade</span>
+    </a>
+    {% block auth_content %}{% endblock %}
+  </div>
+</div>
+<script src="{% static 'js/main.js' %}"></script>
+</body>
+</html>

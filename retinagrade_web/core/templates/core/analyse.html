@@ -1,0 +1,65 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}New Analysis{% endblock %}
+{% block nav_analyse %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Analysis</h1>
+    <p class="page-subtitle">Upload a fundus photograph for automated DR grading</p>
+  </div>
+</div>
+
+<div style="max-width:640px;">
+  <form id="analyseForm" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Fundus Image</div>
+
+      <div class="upload-zone" id="uploadZone" role="button" tabindex="0"
+           aria-label="Click or drag to upload a fundus image">
+        <div class="upload-icon">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="13" stroke-dasharray="4 3" opacity="0.5"/>
+            <path d="M20 26V14M14 18l6-5 6 5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <p class="upload-text">Drop fundus image here or click to browse</p>
+        <p class="upload-hint">JPG or PNG · Max 10 MB</p>
+        <img id="uploadPreview" class="upload-preview" src="" alt="Preview">
+        <p id="uploadFilename" class="upload-filename"></p>
+      </div>
+
+      <p id="uploadError" style="display:none;color:var(--danger);font-size:12px;margin-top:8px;"></p>
+
+      <input type="file" id="fileInput" name="image" accept="image/jpeg,image/png"
+             style="display:none;" required>
+
+      {% if form.image.errors %}
+      <p class="form-error">{{ form.image.errors|join:", " }}</p>
+      {% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-error">{{ form.non_field_errors|join:", " }}</div>
+    {% endif %}
+
+    <button type="submit" id="analyseSubmit" class="btn btn-primary" disabled
+            style="width:100%;justify-content:center;padding:13px;">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Analyse Retinal Image
+    </button>
+  </form>
+</div>
+
+<!-- Full-screen loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner-lg"></div>
+  <p class="loading-text">Analysing retinal image…</p>
+  <p style="font-size:11px;color:var(--text-muted);">This may take a few seconds</p>
+</div>
+{% endblock %}

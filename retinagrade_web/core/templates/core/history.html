@@ -1,0 +1,133 @@
+{% extends "core/base.html" %}
+{% load core_tags %}
+{% block title %}History{% endblock %}
+{% block nav_history %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Analysis History</h1>
+    <p class="page-subtitle">All your past predictions</p>
+  </div>
+  <a href="{% url 'core:analyse' %}" class="btn btn-primary">New Analysis</a>
+</div>
+
+<!-- Filter form -->
+<div class="card" style="margin-bottom:20px;">
+  <form method="get" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+    <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+      <label class="form-label">Grade</label>
+      <select name="grade" class="form-control">
+        {% for val, label in filter_form.grade.field.choices %}
+        <option value="{{ val }}" {% if filter_form.grade.value == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+      <label class="form-label">From</label>
+      <input type="date" name="date_from" class="form-control"
+             value="{{ filter_form.date_from.value|default:'' }}">
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+      <label class="form-label">To</label>
+      <input type="date" name="date_to" class="form-control"
+             value="{{ filter_form.date_to.value|default:'' }}">
+    </div>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    <a href="{% url 'core:history' %}" class="btn btn-secondary">Clear</a>
+  </form>
+</div>
+
+<!-- Bulk delete form -->
+<form id="bulkForm" method="post" action="{% url 'core:bulk_delete' %}">
+  {% csrf_token %}
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">
+        {{ page_obj.paginator.count }} prediction{{ page_obj.paginator.count|pluralize }}
+      </div>
+      <button type="submit" id="bulkDeleteBtn" class="btn btn-danger btn-sm" disabled
+              data-confirm="Delete selected predictions?">
+        Delete Selected
+      </button>
+    </div>
+
+    {% if page_obj.object_list %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="selectAll" class="row-checkbox"></th>
+          <th>Image</th>
+          <th>Grade</th>
+          <th>Confidence</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pred in page_obj %}
+        <tr>
+          <td><input type="checkbox" name="selected" value="{{ pred.pk }}" class="row-checkbox"></td>
+          <td>
+            {% if pred.image %}
+            <img src="{{ pred.image.url }}" class="thumbnail" alt="">
+            {% else %}—{% endif %}
+          </td>
+          <td><span class="grade-badge {{ pred.grade|grade_class }}">{{ pred.label }}</span></td>
+          <td>{{ pred.confidence|mul100 }}%</td>
+          <td>{{ pred.created_at|date:"M j, Y H:i" }}</td>
+          <td style="white-space:nowrap;">
+            <a href="{% url 'core:prediction_detail' pred.pk %}" class="btn btn-secondary btn-sm">View</a>
+            <button type="button" class="btn btn-danger btn-sm"
+                    onclick="if(confirm('Delete this prediction?')){document.getElementById('del-{{ pred.pk }}').submit();}">
+              Delete
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.grade %}&grade={{ request.GET.grade }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="page-link">‹</a>
+      {% else %}
+      <span class="page-link disabled">‹</span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+      <span class="page-link active">{{ num }}</span>
+      {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+      <a href="?page={{ num }}{% if request.GET.grade %}&grade={{ request.GET.grade }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="page-link">{{ num }}</a>
+      {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if request.GET.grade %}&grade={{ request.GET.grade }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="page-link">›</a>
+      {% else %}
+      <span class="page-link disabled">›</span>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <p style="color:var(--text-muted);text-align:center;padding:40px 0;font-size:13px;">
+      No predictions found.
+      {% if request.GET %}
+      <a href="{% url 'core:history' %}">Clear filters</a>
+      {% else %}
+      <a href="{% url 'core:analyse' %}">Upload your first image.</a>
+      {% endif %}
+    </p>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Hidden individual delete forms -->
+{% for pred in page_obj %}
+<form id="del-{{ pred.pk }}" method="post" action="{% url 'core:delete_prediction' pred.pk %}" style="display:none;">
+  {% csrf_token %}
+</form>
+{% endfor %}
+{% endblock %}
